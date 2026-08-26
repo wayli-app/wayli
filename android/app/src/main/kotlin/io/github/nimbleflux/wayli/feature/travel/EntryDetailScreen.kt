@@ -79,8 +79,8 @@ fun EntryDetailScreen(
     viewModel: EntryDetailViewModel = hiltViewModel(),
 ) {
     val entry by viewModel.entry.collectAsState()
+    val renderBlocks by viewModel.renderBlocks.collectAsState()
     val gallery by viewModel.gallery.collectAsState()
-    val resolvedBody by viewModel.resolvedBody.collectAsState()
     var menuOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var confirmDelete by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var viewerIndex by remember { mutableStateOf<Int?>(null) }
@@ -171,41 +171,51 @@ fun EntryDetailScreen(
                     fontWeight = FontWeight.Bold,
                 )
             }
-            if (resolvedBody.isNotBlank()) {
-                Spacer(Modifier.height(20.dp))
-                // Same markdown renderer as the editor preview — inline image
-                // tokens are already resolved to display URLs.
-                io.github.nimbleflux.wayli.designsystem.MarkdownText(markdown = resolvedBody)
-            }
-
-            // Photo tiles — a 3-wide grid under the hero, tappable for the
-            // fullscreen viewer (any count, including a single photo).
-            if (gallery.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Text("Photos", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                gallery.chunked(3).forEachIndexed { rowIndex, rowUrls ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        rowUrls.forEachIndexed { inRow, url ->
-                            val index = rowIndex * 3 + inRow
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { viewerIndex = index },
-                            ) {
-                                io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
-                                    model = url,
-                                    contentDescription = "Photo ${index + 1}",
-                                    modifier = Modifier.fillMaxSize(),
-                                )
+            // Content blocks: text renders as markdown, photo groups as
+            // tappable grids. The hero above already shows the first photo —
+            // the first grid skips it so it never appears twice.
+            var heroSkipped = false
+            renderBlocks.forEach { block ->
+                when (block) {
+                    is RenderBlock.Text -> {
+                        Spacer(Modifier.height(20.dp))
+                        // Same markdown renderer as the editor preview.
+                        io.github.nimbleflux.wayli.designsystem.MarkdownText(markdown = block.md)
+                    }
+                    is RenderBlock.Photos -> {
+                        val gridUrls = if (viewModel.heroUrl != null && !heroSkipped) {
+                            heroSkipped = true
+                            block.urls.drop(1)
+                        } else {
+                            block.urls
+                        }
+                        if (gridUrls.isNotEmpty()) {
+                            Spacer(Modifier.height(8.dp))
+                            gridUrls.chunked(3).forEach { rowUrls ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    rowUrls.forEach { url ->
+                                        val index = gallery.indexOf(url).takeIf { it >= 0 } ?: 0
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .aspectRatio(1f)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .clickable { viewerIndex = index },
+                                        ) {
+                                            io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
+                                                model = url,
+                                                contentDescription = "Photo",
+                                                modifier = Modifier.fillMaxSize(),
+                                            )
+                                        }
+                                    }
+                                    // Pad a short last row so its tiles keep the grid width.
+                                    repeat(3 - rowUrls.size) { Spacer(Modifier.weight(1f)) }
+                                }
+                                Spacer(Modifier.height(8.dp))
                             }
                         }
-                        // Pad a short last row so its tiles keep the grid width.
-                        repeat(3 - rowUrls.size) { Spacer(Modifier.weight(1f)) }
                     }
-                    Spacer(Modifier.height(8.dp))
                 }
             }
             Spacer(Modifier.height(32.dp))
@@ -331,12 +341,13 @@ class EntryDetailViewModel @Inject constructor(
     private val _entry = MutableStateFlow<TripEntry?>(null)
     val entry: StateFlow<TripEntry?> = _entry.asStateFlow()
 
+    /** Ordered render model: text (markdown) and photo groups. */
+    private val _renderBlocks = MutableStateFlow<List<RenderBlock>>(emptyList())
+    val renderBlocks: StateFlow<List<RenderBlock>> = _renderBlocks.asStateFlow()
+
+    /** Flat photo list across blocks — the fullscreen viewer sequence. */
     private val _gallery = MutableStateFlow<List<String>>(emptyList())
     val gallery: StateFlow<List<String>> = _gallery.asStateFlow()
-
-    /** Body with inline image tokens resolved to display URLs (markdown-ready). */
-    private val _resolvedBody = MutableStateFlow("")
-    val resolvedBody: StateFlow<String> = _resolvedBody.asStateFlow()
 
     /** Delete the entry (owner-only via RLS); demo/local entries just vanish. */
     fun deleteEntry(entry: TripEntry, onDone: (Boolean) -> Unit = {}) {
@@ -367,6 +378,12 @@ class EntryDetailViewModel @Inject constructor(
             _entry.value = demo
             val images = io.github.nimbleflux.wayli.demo.DemoData.entryImages[entryId].orEmpty()
             heroUrl = images.firstOrNull()
+            val blocks = buildList {
+                demo?.body?.trim()?.takeIf { it.isNotBlank() }
+                    ?.let { add(RenderBlock.Text(it)) }
+                if (images.isNotEmpty()) add(RenderBlock.Photos(images))
+            }
+            _renderBlocks.value = blocks
             _gallery.value = images
             return
         }
@@ -387,21 +404,32 @@ class EntryDetailViewModel @Inject constructor(
                 }
             }.map { it.await() }
         }.filterNotNull().toMap()
-        // Photos already placed inline in the body are not repeated in the
-        // bottom gallery; the body's tokens resolve to the same URLs.
-        val inlinePaths = io.github.nimbleflux.wayli.feature.travel.InlineMedia.inlineMediaPaths(entry.body)
-        val galleryMedia = media.filterNot { it.storagePath in inlinePaths }
-        val ordered = galleryMedia.mapNotNull { urls[it.id] }
 
-        // Cover rule: cover_media_id → first by sort_order.
+        // The effective block list: stored blocks when fresh, derived from the
+        // legacy body + media rows otherwise (read-compat rule).
+        val effective = io.github.nimbleflux.wayli.entry.EntryBlocks.effective(entry, media)
+        val renderBlocks = effective.mapNotNull { block ->
+            when (block) {
+                is io.github.nimbleflux.wayli.entry.EntryBlocks.Block.Text ->
+                    block.md.takeIf { it.isNotBlank() }?.let { RenderBlock.Text(it) }
+                is io.github.nimbleflux.wayli.entry.EntryBlocks.Block.Photos -> {
+                    val blockUrls = block.ids.mapNotNull { urls[it] }
+                    if (blockUrls.isEmpty()) null else RenderBlock.Photos(blockUrls)
+                }
+            }
+        }
+        val flat = renderBlocks.filterIsInstance<RenderBlock.Photos>().flatMap { it.urls }
+
+        // Cover rule: cover_media_id → first photo in block order.
         val coverId = entry.coverMediaId
-        heroUrl = if (coverId != null) urls[coverId] ?: ordered.firstOrNull() else ordered.firstOrNull()
-        _gallery.value = ordered
-
-        val pathToUrl = media.mapNotNull { m -> urls[m.id]?.let { m.storagePath to it } }.toMap()
-        _resolvedBody.value = io.github.nimbleflux.wayli.feature.travel.InlineMedia.resolve(
-            entry.body.orEmpty(),
-            resolveMedia = { path -> pathToUrl[path] },
-        )
+        heroUrl = if (coverId != null) urls[coverId] ?: flat.firstOrNull() else flat.firstOrNull()
+        _renderBlocks.value = renderBlocks
+        _gallery.value = flat
     }
+}
+
+/** Render model for the entry detail screen. */
+sealed interface RenderBlock {
+    data class Text(val md: String) : RenderBlock
+    data class Photos(val urls: List<String>) : RenderBlock
 }

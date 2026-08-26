@@ -22,7 +22,7 @@ data class MetadataEntity(
  */
 @Database(
     entities = [MetadataEntity::class, PendingPointEntity::class, DraftEntryEntity::class, CacheEntity::class],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 @TypeConverters(WayliConverters::class)

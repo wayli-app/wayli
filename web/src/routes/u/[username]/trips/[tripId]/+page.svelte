@@ -5,7 +5,9 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { loadPublicSettings, getSetting } from '$lib/stores/settings.svelte';
 	import { renderMarkdown } from '$lib/utils/markdown';
-	import { resolveInlineMedia, inlineMediaRefs } from '$lib/utils/inline-media';
+	import { storageRefToUrl } from '$lib/utils/inline-media';
+	import { effectiveBlocks, normalizeEntryBlocks } from '$lib/utils/entry-blocks';
+	import EntryBlocksView from '$lib/components/EntryBlocksView.svelte';
 	import TripMap from '$lib/components/TripMap.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
@@ -57,6 +59,7 @@
 		id: string;
 		title: string;
 		body: string;
+		blocks?: unknown;
 		entry_date: string;
 		end_date?: string | null;
 	};
@@ -217,7 +220,7 @@
 			const isOwnerViewer = (trip as any).user_id === currentUserId;
 			const entryQuery = fluxbase
 				.from('trip_entries')
-				.select('id, title, body, entry_date, end_date')
+				.select('id, title, body, blocks, entry_date, end_date')
 				.eq('trip_id', tripId)
 				.order('entry_date', { ascending: true });
 			if (!isOwnerViewer) {
@@ -512,38 +515,33 @@
 								</div>
 							</div>
 
-							{#if entry.title}
-								<h3 class="text-foreground mb-3 text-2xl font-bold tracking-tight">
-									{entry.title}
-								</h3>
-							{/if}
-						{#if entry.body}
-							<div class="prose prose-sm dark:prose-invert max-w-none leading-relaxed">
-								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-								{@html renderMarkdown(resolveInlineMedia(entry.body))}
-							</div>
+						{#if entry.title}
+							<h3 class="text-foreground mb-3 text-2xl font-bold tracking-tight">
+								{entry.title}
+							</h3>
 						{/if}
-
-						<!-- Per-entry photos (inline-placed ones are filtered out) -->
-						{#if media.filter((m) => m.entry_id === entry.id && !inlineMediaRefs(entry.body).has(m.storage_path)).length > 0}
-							<div class="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
-								{#each media.filter((m) => m.entry_id === entry.id && !inlineMediaRefs(entry.body).has(m.storage_path)) as item (item.id)}
-										<button
-											type="button"
-											onclick={() => (lightbox = item)}
-											class="group/img aspect-square overflow-hidden rounded-xl"
-											aria-label="View photo"
-										>
-											<img
-												src={item.thumbnail_path ?? item.storage_path}
-												alt={item.caption || 'Photo'}
-												class="h-full w-full object-cover transition-transform duration-500 group-hover/img:scale-110"
-												loading="lazy"
-											/>
-										</button>
-									{/each}
-								</div>
+						{#if entry.body || media.some((m) => m.entry_id === entry.id)}
+							{@const entryMedia = media.filter((m) => m.entry_id === entry.id)}
+							{@const entryBlockList = effectiveBlocks(
+								{ body: entry.body, blocks: normalizeEntryBlocks(entry.blocks) },
+								entryMedia
+							)}
+							{#if entryBlockList.length > 0}
+								<EntryBlocksView
+									blocks={entryBlockList}
+									mediaById={new Map(
+										entryMedia.map((m) => [
+											m.id,
+											{
+												url: storageRefToUrl(m.thumbnail_path ?? m.storage_path),
+												fullUrl: storageRefToUrl(m.storage_path),
+												caption: m.caption
+											}
+										])
+									)}
+								/>
 							{/if}
+						{/if}
 
 							<!-- Engagement -->
 							<div class="border-border mt-5 flex items-start gap-3 border-t pt-4">

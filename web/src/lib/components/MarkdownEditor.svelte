@@ -22,9 +22,10 @@
 	let mode = $state<'edit' | 'preview'>('edit');
 	let uploading = $state(false);
 	let fileInput = $state<HTMLInputElement>();
+	let textarea = $state<HTMLTextAreaElement>();
 
 	function insert(before: string, after: string = '') {
-		const el = document.getElementById('markdown-editor-textarea') as HTMLTextAreaElement | null;
+		const el = textarea;
 		if (!el) return;
 		const start = el.selectionStart;
 		const end = el.selectionEnd;
@@ -121,7 +122,7 @@
 	<!-- Editor / Preview -->
 	{#if mode === 'edit'}
 		<textarea
-			id="markdown-editor-textarea"
+			bind:this={textarea}
 			bind:value
 			{placeholder}
 			rows="8"

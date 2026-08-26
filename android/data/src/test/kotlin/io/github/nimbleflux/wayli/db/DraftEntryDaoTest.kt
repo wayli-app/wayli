@@ -59,6 +59,19 @@ class DraftEntryDaoTest {
     }
 
     @Test
+    fun `block drafts roundtrip the serialized block list`() = runTest {
+        val blocks = """[{"t":"text","md":"Story"},{"t":"photos","photos":[{"localPath":"/data/p/a.jpg"}]}]"""
+        val id = repo.save(
+            EntryDraft(tripId = "t", title = "Blocks", blocks = blocks, entryDate = "2026-08-26"),
+        )
+        val loaded = repo.get(id)!!
+        assertEquals(blocks, loaded.blocks)
+        // Legacy drafts (pre-blocks builds) still load with blocks = null.
+        val legacyId = repo.save(EntryDraft(tripId = "t", title = "Legacy", body = "old body"))
+        assertNull(repo.get(legacyId)!!.blocks)
+    }
+
+    @Test
     fun `multiple drafts per trip, most recent first`() = runTest {
         val first = repo.save(EntryDraft(tripId = "t", title = "first"))
         Thread.sleep(2) // distinct updatedAt

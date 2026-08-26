@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonElement
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -49,6 +50,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.DateRange
@@ -92,10 +96,9 @@ data class EditorState(
     val draftId: String = "",
     val isEdit: Boolean = false,
     val title: String = "",
-    val body: String = "",
     val entryDate: String = "",
-    /** Newly picked photos — local app-file paths, uploaded on save. */
-    val localPhotos: List<String> = emptyList(),
+    /** Ordered content blocks — text (markdown) and photo blocks. */
+    val blocks: List<EditorBlockDto> = emptyList(),
     /** Existing server media for the edited entry (id + display URL). */
     val existingMedia: List<ExistingMedia> = emptyList(),
 
@@ -128,6 +131,7 @@ class EntryEditorViewModel @Inject constructor(
     private val tripRepo: TripRepository,
     private val draftRepo: DraftRepository,
     private val mediaUploader: MediaUploader,
+    private val entryPublisher: EntryPublisher,
     private val demoManager: DemoManager,
 ) : ViewModel() {
 
@@ -156,9 +160,8 @@ class EntryEditorViewModel @Inject constructor(
      * for an otherwise-unchanged published entry. */
     private data class DraftContent(
         val title: String,
-        val body: String,
+        val blocks: String,
         val entryDate: String,
-        val photos: List<String>,
     )
 
     /** Draft content at load time — persist() only acts on divergence. */
@@ -169,9 +172,8 @@ class EntryEditorViewModel @Inject constructor(
 
     private fun draftContentOf(state: EditorState) = DraftContent(
         title = state.title,
-        body = state.body,
+        blocks = EditorBlockModel.encode(state.blocks),
         entryDate = state.entryDate,
-        photos = state.localPhotos,
     )
 
     init {
@@ -185,14 +187,16 @@ class EntryEditorViewModel @Inject constructor(
         val editing = entryId != null
         var title = ""
         var body = ""
+        var blocksJson: JsonElement? = null
         var date = java.time.LocalDate.now().toString()
-        var existingMedia = emptyList<List<ExistingMedia>>()
+        var mediaRows = emptyList<io.github.nimbleflux.wayli.models.TripMedia>()
 
         var entryCoverId: String? = null
         if (editing) {
             if (cached != null && cached.id == entryId) {
                 title = cached.title.orEmpty()
                 body = cached.body.orEmpty()
+                blocksJson = cached.blocks
                 date = cached.entryDate
                 entryCoverId = cached.coverMediaId
             } else if (!demoManager.isDemoMode) {
@@ -201,6 +205,7 @@ class EntryEditorViewModel @Inject constructor(
                     ?.let { entry ->
                         title = entry.title.orEmpty()
                         body = entry.body.orEmpty()
+                        blocksJson = entry.blocks
                         date = entry.entryDate
                         entryCoverId = entry.coverMediaId
                     }
@@ -218,23 +223,66 @@ class EntryEditorViewModel @Inject constructor(
         // Resuming a specific draft (multi-draft: the trip screen routes to
         // one) — its content wins over the entry's server content.
         val draft = draftId?.let { draftRepo.get(it) }
+        var draftBlocks: List<EditorBlockDto>? = null
         if (draft != null) {
             title = draft.title.ifBlank { title }
-            body = draft.body.ifBlank { body }
             if (draft.entryDate.isNotBlank()) date = draft.entryDate
+            draftBlocks = EditorBlockModel.decode(draft.blocks)
+            if (draftBlocks == null) {
+                // Legacy draft (body + local photos, no block list yet).
+                body = draft.body.ifBlank { body }
+            }
         }
-        val localPhotos = draft?.photos.orEmpty()
+        val draftLocalPhotos = draft?.photos.orEmpty()
 
         // Existing server photos load on EVERY edit — the cache-hit branch
         // above used to skip this, which hid the × / ★ management entirely.
         if (editing && !demoManager.isDemoMode) {
-            existingMedia = listOf(
-                tripRepo.listMedia(tripId, entryId).getOrNull().orEmpty()
-                    .mapNotNull { media ->
-                        mediaUploader.resolveDisplayUrl(storagePath = media.storagePath)
-                            ?.let { ExistingMedia(media.id, it, media.storagePath) }
-                    },
-            )
+            mediaRows = tripRepo.listMedia(tripId, entryId).getOrNull().orEmpty()
+        }
+        val existingMedia = mediaRows.mapNotNull { media ->
+            mediaUploader.resolveDisplayUrl(storagePath = media.storagePath)
+                ?.let { ExistingMedia(media.id, it, media.storagePath) }
+        }
+
+        // Block list for the editor: draft blocks > stored blocks > derived
+        // from the legacy body + media rows.
+        val editorBlocks: List<EditorBlockDto> = when {
+            draftBlocks != null -> draftBlocks
+            else -> {
+                val effective = when {
+                    blocksJson != null -> io.github.nimbleflux.wayli.entry.EntryBlocks.fromJson(blocksJson)
+                    else -> null
+                }?.let { envelope ->
+                    if (io.github.nimbleflux.wayli.entry.EntryBlocks.legacyBody(
+                            envelope.blocks,
+                            mediaRows.associateBy { it.id },
+                        ) == body
+                    ) envelope else null // stale blocks (legacy client edit) → derive
+                } ?: io.github.nimbleflux.wayli.entry.EntryBlocks.derive(body, mediaRows)
+
+                val fromEntry = effective?.blocks?.map { block ->
+                    when (block) {
+                        is io.github.nimbleflux.wayli.entry.EntryBlocks.Block.Text ->
+                            EditorBlockModel.text(block.md)
+                        is io.github.nimbleflux.wayli.entry.EntryBlocks.Block.Photos ->
+                            EditorBlockModel.photos(block.ids.map { EditorPhotoRef(mediaId = it) })
+                    }
+                }.orEmpty()
+
+                // Legacy drafts carry local picks that were never uploaded —
+                // they extend the trailing photo block.
+                if (draftLocalPhotos.isEmpty()) fromEntry
+                else {
+                    val locals = draftLocalPhotos.map { EditorPhotoRef(localPath = it) }
+                    val last = fromEntry.lastOrNull()
+                    if (last != null && last.t == EditorBlockModel.PHOTOS) {
+                        fromEntry.dropLast(1) + EditorBlockModel.photos(last.photos + locals)
+                    } else {
+                        fromEntry + EditorBlockModel.photos(locals)
+                    }
+                }
+            }
         }
 
         _state.value = EditorState(
@@ -242,10 +290,9 @@ class EntryEditorViewModel @Inject constructor(
             isEdit = editing,
             heroMediaId = entryCoverId,
             title = title,
-            body = body,
             entryDate = date,
-            localPhotos = localPhotos,
-            existingMedia = existingMedia.firstOrNull().orEmpty(),
+            blocks = editorBlocks.ifEmpty { listOf(EditorBlockModel.text("")) },
+            existingMedia = existingMedia,
             pendingSyncNotice = draft?.pendingSync == true,
             loaded = true,
         )
@@ -258,39 +305,55 @@ class EntryEditorViewModel @Inject constructor(
     // ---- Field updates (auto-save via persist()) ----
 
     fun setTitle(value: String) = update { it.copy(title = value) }
-    fun setBody(value: String) = update { it.copy(body = value) }
     fun setDate(value: String) = update { it.copy(entryDate = value) }
 
-    /** Copies the picked image into app storage so the draft survives restarts. */
-    fun addPhoto(uri: Uri) {
-        viewModelScope.launch(Dispatchers.IO) {
-            runCatching { copyPhotoLocally(uri) }
-                .onSuccess { path ->
-                    update { it.copy(localPhotos = it.localPhotos + path) }
-                }.onFailure {
-                    message.value = "Could not read the selected photo"
-                }
+    fun setBlockText(index: Int, md: String) = updateBlocks { blocks ->
+        blocks.mapIndexed { i, b -> if (i == index && b.t == EditorBlockModel.TEXT) b.copy(md = md) else b }
+    }
+
+    fun addTextBlock() = updateBlocks { it + EditorBlockModel.text("") }
+
+    /** Move a block one position up (delta -1) or down (delta +1). */
+    fun moveBlock(index: Int, delta: Int) = updateBlocks { blocks ->
+        val target = index + delta
+        if (target < 0 || target >= blocks.size) blocks
+        else blocks.toMutableList().apply {
+            val moved = removeAt(index)
+            add(target, moved)
         }
     }
 
+    /** Remove a block. Photo blocks lose their server media rows on publish. */
+    fun removeBlock(index: Int) = updateBlocks { blocks ->
+        blocks.filterIndexed { i, _ -> i != index }
+    }
+
     /**
-     * Adds a photo AND embeds it inline at the end of the story text —
-     * photos can live between paragraphs, not only in the bottom gallery.
+     * Copies the picked images into app storage (so drafts survive restarts)
+     * and appends them to a photo block — the trailing one when [blockIndex]
+     * is null, else the given block.
      */
-    fun addPhotoInline(uri: Uri) {
+    fun addPhotos(blockIndex: Int?, uris: List<Uri>) {
+        if (uris.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
-            runCatching { copyPhotoLocally(uri) }
-                .onSuccess { path ->
-                    update { state ->
-                        val index = state.localPhotos.size
-                        state.copy(
-                            localPhotos = state.localPhotos + path,
-                            body = InlineMedia.appendDraftImage(state.body, index),
-                        )
+            val refs = uris.mapNotNull { uri ->
+                runCatching { copyPhotoLocally(uri) }
+                    .onFailure { message.value = "Could not read the selected photo" }
+                    .getOrNull()
+                    ?.let { EditorPhotoRef(localPath = it) }
+            }
+            if (refs.isNotEmpty()) {
+                updateBlocks { blocks ->
+                    val index = blockIndex ?: blocks.indexOfLast { it.t == EditorBlockModel.PHOTOS }
+                    if (index >= 0) {
+                        blocks.mapIndexed { i, b ->
+                            if (i == index && b.t == EditorBlockModel.PHOTOS) b.copy(photos = b.photos + refs) else b
+                        }
+                    } else {
+                        blocks + EditorBlockModel.photos(refs)
                     }
-                }.onFailure {
-                    message.value = "Could not read the selected photo"
                 }
+            }
         }
     }
 
@@ -303,42 +366,36 @@ class EntryEditorViewModel @Inject constructor(
         return file.absolutePath
     }
 
-    fun removePhoto(path: String) = update { it.copy(localPhotos = it.localPhotos - path) }
-
-    /**
-     * Swap two photo positions for reordering. Both indices are positions in
-     * the combined strip (existing server photos first, then local picks);
-     * a null [from] just returns the tapped index for selection state.
-     */
-    fun toggleSwap(from: Int?, to: Int): Int? {
-        if (from == null || from == to) return to
-        update { state ->
-            val existing = state.existingMedia.toMutableList()
-            val local = state.localPhotos.toMutableList()
-            val existingCount = existing.size
-            when {
-                from < existingCount && to < existingCount -> {
-                    val a = existing[from]
-                    existing[from] = existing[to]
-                    existing[to] = a
-                }
-                from >= existingCount && to >= existingCount -> {
-                    val fi = from - existingCount
-                    val ti = to - existingCount
-                    val a = local[fi]
-                    local[fi] = local[ti]
-                    local[ti] = a
-                }
-                else -> return@update state // cross-list swaps not meaningful
-            }
-            state.copy(existingMedia = existing, localPhotos = local)
+    /** Remove one photo (local pick or server media) from its block. */
+    fun removePhotoRef(blockIndex: Int, photoIndex: Int) {
+        var removedMediaId: String? = null
+        updateBlocks { blocks ->
+            blocks.mapIndexed { i, b ->
+                if (i == blockIndex && b.t == EditorBlockModel.PHOTOS && photoIndex < b.photos.size) {
+                    removedMediaId = b.photos[photoIndex].mediaId
+                    b.copy(photos = b.photos.filterIndexed { p, _ -> p != photoIndex })
+                } else b
+            }.filter { it.t == EditorBlockModel.TEXT || it.photos.isNotEmpty() }
         }
-        return null
+        // Server photos are removed from the entry entirely (row + storage).
+        removedMediaId?.let(::deleteExistingMedia)
     }
 
-    /** Delete an existing server photo from the entry (row + storage, best effort). */
+    /**
+     * Delete an existing server photo from the entry (row + storage, best
+     * effort) and strip it from every block.
+     */
     fun deleteExistingMedia(mediaId: String) {
-        update { it.copy(existingMedia = it.existingMedia.filterNot { m -> m.id == mediaId }) }
+        update {
+            it.copy(
+                existingMedia = it.existingMedia.filterNot { m -> m.id == mediaId },
+                blocks = it.blocks.map { b ->
+                    if (b.t == EditorBlockModel.PHOTOS) {
+                        b.copy(photos = b.photos.filterNot { r -> r.mediaId == mediaId })
+                    } else b
+                }.filter { it.t == EditorBlockModel.TEXT || it.photos.isNotEmpty() },
+            )
+        }
         if (!demoManager.isDemoMode && entryId != null) {
             viewModelScope.launch(Dispatchers.IO) {
                 tripRepo.deleteMedia(mediaId).onFailure {
@@ -357,6 +414,10 @@ class EntryEditorViewModel @Inject constructor(
                 .onSuccess { message.value = "Cover updated" }
                 .onFailure { message.value = "Couldn't set the cover: ${it.message ?: "network error"}" }
         }
+    }
+
+    private fun updateBlocks(transform: (List<EditorBlockDto>) -> List<EditorBlockDto>) {
+        update { it.copy(blocks = transform(it.blocks)) }
     }
 
     private fun update(transform: (EditorState) -> EditorState) {
@@ -386,9 +447,8 @@ class EntryEditorViewModel @Inject constructor(
                 tripId = tripId,
                 entryId = entryId,
                 title = snapshot.title,
-                body = snapshot.body,
+                blocks = EditorBlockModel.encode(snapshot.blocks),
                 entryDate = snapshot.entryDate,
-                photos = snapshot.localPhotos,
             )
             val id = draftRepo.save(draft)
             if (snapshot.draftId.isBlank()) {
@@ -448,12 +508,20 @@ class EntryEditorViewModel @Inject constructor(
         _state.value = snapshot.copy(saving = true)
         viewModelScope.launch(Dispatchers.IO) {
             if (demoManager.isDemoMode) {
+                val blocksJson = io.github.nimbleflux.wayli.entry.EntryBlocks.toJson(
+                    io.github.nimbleflux.wayli.entry.EntryBlocks.Envelope(cleanBlocks(snapshot.blocks)),
+                )
+                val body = snapshot.blocks
+                    .filter { it.t == EditorBlockModel.TEXT }
+                    .joinToString("\n\n") { it.md.orEmpty().trim() }
+                    .trim().takeIf { it.isNotBlank() }
                 val entry = TripEntry(
                     id = entryId ?: "local-${System.currentTimeMillis()}",
                     tripId = tripId,
                     entryDate = snapshot.entryDate.ifBlank { java.time.LocalDate.now().toString() },
                     title = snapshot.title.trim(),
-                    body = snapshot.body.trim().takeIf { it.isNotBlank() },
+                    body = body,
+                    blocks = blocksJson,
                     status = "published",
                     createdAt = "",
                     updatedAt = "",
@@ -467,14 +535,13 @@ class EntryEditorViewModel @Inject constructor(
 
             val published = publishReal(snapshot)
             _state.value = _state.value.copy(saving = false)
-            if (published == PublishResult.Done) {
+            if (published != null) {
                 if (snapshot.draftId.isNotBlank()) draftRepo.delete(snapshot.draftId)
                 savedEntry.value = TripEntry(
-                    id = entryId ?: "saved",
+                    id = published,
                     tripId = tripId,
                     entryDate = snapshot.entryDate,
                     title = snapshot.title.trim(),
-                    body = snapshot.body.trim().takeIf { it.isNotBlank() },
                 )
             } else {
                 // Offline (or server unreachable): keep everything as a
@@ -486,9 +553,8 @@ class EntryEditorViewModel @Inject constructor(
                             tripId = tripId,
                             entryId = entryId,
                             title = snapshot.title,
-                            body = snapshot.body,
+                            blocks = EditorBlockModel.encode(snapshot.blocks),
                             entryDate = snapshot.entryDate,
-                            photos = snapshot.localPhotos,
                         ),
                     )
                 }
@@ -501,41 +567,32 @@ class EntryEditorViewModel @Inject constructor(
         }
     }
 
-    private enum class PublishResult { Done, Failed }
-
-    private suspend fun publishReal(snapshot: EditorState): PublishResult {
-        val title = snapshot.title.trim()
-        val date = snapshot.entryDate.ifBlank { java.time.LocalDate.now().toString() }
-
-        // Upload local photos FIRST: the body's wayli-draft: tokens are
-        // rewritten to the final storage paths, so the entry row is written
-        // with its definitive body in one go.
-        val uploadedPaths = mutableListOf<String>()
-        snapshot.localPhotos.forEachIndexed { _, path ->
-            val storagePath = mediaUploader.uploadPhoto(appContext, Uri.fromFile(File(path))).getOrNull()
-                ?: return PublishResult.Failed
-            uploadedPaths += storagePath
-        }
-        val body = InlineMedia.rewriteDraftTokens(snapshot.body.trim()) { index ->
-            uploadedPaths.getOrNull(index)
-        }.takeIf { it.isNotBlank() }
-
-        val targetEntryId: String = if (entryId != null) {
-            val updated = tripRepo.updateEntry(entryId, title, date, body)
-            if (updated.isFailure) return PublishResult.Failed
-            entryId
-        } else {
-            val created = tripRepo.createEntry(tripId, title, date, body)
-            created.getOrNull()?.id ?: return PublishResult.Failed
-        }
-
-        // Attach the uploaded photos as media rows.
-        uploadedPaths.forEachIndexed { index, storagePath ->
-            if (tripRepo.createMedia(tripId, targetEntryId, storagePath, index).isFailure) {
-                return PublishResult.Failed
+    /** Blank text blocks and empty photo blocks never publish. */
+    private fun cleanBlocks(blocks: List<EditorBlockDto>): List<io.github.nimbleflux.wayli.entry.EntryBlocks.Block> =
+        blocks.mapNotNull { block ->
+            when (block.t) {
+                EditorBlockModel.TEXT -> block.md?.trim()?.takeIf { it.isNotEmpty() }
+                    ?.let { io.github.nimbleflux.wayli.entry.EntryBlocks.Block.Text(it) }
+                EditorBlockModel.PHOTOS -> block.photos.takeIf { it.isNotEmpty() }
+                    ?.let { io.github.nimbleflux.wayli.entry.EntryBlocks.Block.Photos(it.mapNotNull { r -> r.mediaId }) }
+                else -> null
             }
-        }
-        return PublishResult.Done
+        }.filter { b -> b !is io.github.nimbleflux.wayli.entry.EntryBlocks.Block.Text || b.md.isNotEmpty() }
+            .filter { b -> b !is io.github.nimbleflux.wayli.entry.EntryBlocks.Block.Photos || b.ids.isNotEmpty() }
+
+    /** Returns the published entry id, or null on failure. */
+    private suspend fun publishReal(snapshot: EditorState): String? = runCatching {
+        entryPublisher.publish(
+            tripId = tripId,
+            entryId = entryId,
+            title = snapshot.title.trim(),
+            entryDate = snapshot.entryDate.ifBlank { java.time.LocalDate.now().toString() },
+            editorBlocks = snapshot.blocks,
+            existingMedia = snapshot.existingMedia,
+        )
+    }.getOrElse {
+        message.value = "Publish failed: ${it.message ?: "network error"}"
+        null
     }
 
     fun clearMessage() { message.value = null }
@@ -562,14 +619,21 @@ fun EntryEditorScreen(
     val queuedOffline by viewModel.queuedOffline.collectAsState()
     val snackbar = remember { androidx.compose.material3.SnackbarHostState() }
 
+    // Photos land inside photo blocks. Which block a pick extends is decided
+    // by the tile that launched the picker (null = trailing photo block).
+    var pendingPhotoBlockIndex by remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
     val photoPicker = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
-    ) { uri -> uri?.let(viewModel::addPhoto) }
+        androidx.activity.result.contract.ActivityResultContracts.PickMultipleVisualMedia(),
+    ) { uris -> viewModel.addPhotos(pendingPhotoBlockIndex, uris) }
 
-    // Inline variant — the photo is appended to the story text, not the grid.
-    val inlinePhotoPicker = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
-    ) { uri -> uri?.let(viewModel::addPhotoInline) }
+    fun launchPhotoPicker(blockIndex: Int?) {
+        pendingPhotoBlockIndex = blockIndex
+        photoPicker.launch(
+            androidx.activity.result.PickVisualMediaRequest(
+                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
+            ),
+        )
+    }
 
     // Destructive photo removals ask first — deleting a server photo also
     // removes the stored file.
@@ -654,26 +718,23 @@ fun EntryEditorScreen(
         ) {
             if (state.previewMode) {
                 // ---- Preview pane: read-only render (also used for drafts) ----
-                // Tokens resolve to real display URLs (server photos) or local
-                // files (picks not yet uploaded); photos already placed inline
-                // are not repeated in the strip below.
-                val previewBody = remember(state.body, state.existingMedia, state.localPhotos) {
-                    InlineMedia.resolve(
-                        state.body,
-                        resolveMedia = { path -> state.existingMedia.firstOrNull { it.storagePath == path }?.url },
-                        resolveDraft = { index -> state.localPhotos.getOrNull(index)?.let { java.io.File(it).toURI().toString() } },
-                    )
+                // Server photos resolve to display URLs, local picks to file URIs.
+                val previewItems = remember(state.blocks, state.existingMedia) {
+                    state.blocks.mapNotNull { block ->
+                        when (block.t) {
+                            EditorBlockModel.TEXT -> block.md?.trim()?.takeIf { it.isNotEmpty() }
+                                ?.let { PreviewItem.Text(it) }
+                            else -> block.photos.mapNotNull { ref ->
+                                ref.mediaId?.let { id -> state.existingMedia.firstOrNull { it.id == id }?.url }
+                                    ?: ref.localPath?.let { java.io.File(it).toURI().toString() }
+                            }.takeIf { it.isNotEmpty() }?.let { PreviewItem.Photos(it) }
+                        }
+                    }
                 }
-                val inlineDraftIndexes = remember(state.body) { InlineMedia.inlineDraftIndexes(state.body) }
-                val inlinePaths = remember(state.body) { InlineMedia.inlineMediaPaths(state.body) }
                 EntryPreviewPane(
                     title = state.title,
-                    body = previewBody,
                     entryDate = state.entryDate,
-                    photos = state.existingMedia.filterNot { it.storagePath in inlinePaths }.map { it.url } +
-                        state.localPhotos.mapIndexed { i, path -> i to path }
-                            .filterNot { it.first in inlineDraftIndexes }
-                            .map { java.io.File(it.second) },
+                    items = previewItems,
                 )
                 return@Column
             }
@@ -751,30 +812,118 @@ fun EntryEditorScreen(
             )
             Spacer(Modifier.height(12.dp))
 
-            // ---- Photo strip: existing media + new local picks + add tile ----
-            // ---- Body editor: fixed generous height; the column scrolls,
-            // so a tall photo grid below can't crush the field to zero. ----
-            androidx.compose.material3.OutlinedTextField(
-                value = state.body,
-                onValueChange = viewModel::setBody,
-                label = { Text("Your story…") },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp),
-                textStyle = MaterialTheme.typography.bodyLarge,
-            )
-            // Photos land INLINE at the end of the story (drag the token in
-            // the text to move it); the bottom grid is for the rest.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        inlinePhotoPicker.launch(
-                            androidx.activity.result.PickVisualMediaRequest(
-                                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
-                            ),
+            // ---- Content blocks: text (markdown) and photo groups. ----
+            state.blocks.forEachIndexed { blockIndex, block ->
+                // Block controls: move up / move down / remove.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    androidx.compose.material3.IconButton(
+                        onClick = { viewModel.moveBlock(blockIndex, -1) },
+                        enabled = blockIndex > 0 && !state.saving,
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.KeyboardArrowUp,
+                            contentDescription = "Move block up",
+                            modifier = Modifier.size(18.dp),
                         )
-                    },
+                    }
+                    androidx.compose.material3.IconButton(
+                        onClick = { viewModel.moveBlock(blockIndex, 1) },
+                        enabled = blockIndex < state.blocks.lastIndex && !state.saving,
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.KeyboardArrowDown,
+                            contentDescription = "Move block down",
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                    androidx.compose.material3.IconButton(
+                        onClick = { viewModel.removeBlock(blockIndex) },
+                        enabled = !state.saving,
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            androidx.compose.material.icons.Icons.Filled.Close,
+                            contentDescription = "Remove block",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                if (block.t == EditorBlockModel.TEXT) {
+                    // ---- Text block: markdown field; the column scrolls, so
+                    // tall content below can't crush the field to zero. ----
+                    androidx.compose.material3.OutlinedTextField(
+                        value = block.md.orEmpty(),
+                        onValueChange = { viewModel.setBlockText(blockIndex, it) },
+                        label = { Text("Your story…") },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp),
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                    )
+                } else {
+                    // ---- Photo block: grid tiles + a trailing add tile. ----
+                    val columns = 3
+                    (0 until block.photos.size + 1).chunked(columns).forEach { rowIndices ->
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            rowIndices.forEach { index ->
+                                Box(Modifier.weight(1f).height(104.dp)) {
+                                    if (index < block.photos.size) {
+                                        val ref = block.photos[index]
+                                        val url = ref.mediaId?.let { id ->
+                                            state.existingMedia.firstOrNull { it.id == id }?.url
+                                        }
+                                        PhotoTile(
+                                            model = url ?: ref.localPath?.let { java.io.File(it) } ?: "",
+                                            isHero = ref.mediaId != null && ref.mediaId == state.heroMediaId,
+                                            onRemove = {
+                                                pendingPhotoDelete = "This photo" to {
+                                                    viewModel.removePhotoRef(blockIndex, index)
+                                                }
+                                            },
+                                            onSetCover = ref.mediaId?.let { id -> { viewModel.setCover(id) } },
+                                        )
+                                    } else {
+                                        AddPhotoTile(
+                                            onAdd = { launchPhotoPicker(blockIndex) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
+                                }
+                            }
+                            // Pad short rows so tiles keep grid width.
+                            repeat(columns - rowIndices.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+
+            // ---- Add-block actions ----
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.material3.OutlinedButton(
+                    onClick = { viewModel.addTextBlock() },
+                    enabled = !state.saving,
+                ) {
+                    Icon(
+                        Icons.Filled.Notes,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.size(6.dp))
+                    Text("Add text")
+                }
+                androidx.compose.material3.OutlinedButton(
+                    onClick = { launchPhotoPicker(null) },
                     enabled = !state.saving,
                 ) {
                     Icon(
@@ -783,79 +932,10 @@ fun EntryEditorScreen(
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.size(6.dp))
-                    Text("Add photo in text", style = MaterialTheme.typography.labelMedium)
+                    Text("Add photos")
                 }
             }
-            Spacer(Modifier.height(4.dp))
-
-            // ---- Photos: grid below the editor. Tap one photo, then
-            // another, to swap their positions (reorder). ----
-            if (state.existingMedia.isNotEmpty() || state.localPhotos.isNotEmpty()) {
-                Text(
-                    "Photos — tap two to swap order",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-            }
-            var swapFrom by remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
-            val existingCount = state.existingMedia.size
-            val totalCount = existingCount + state.localPhotos.size + 1
-            val columns = 3
-            (0 until totalCount).chunked(columns).forEach { rowIndices ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    rowIndices.forEach { index ->
-                        Box(Modifier.weight(1f).height(104.dp)) {
-                            when {
-                                index < existingCount -> {
-                                    val media = state.existingMedia[index]
-                                    PhotoTile(
-                                        model = media.url,
-                                        selected = swapFrom == index,
-                                        isHero = media.id == state.heroMediaId,
-                                        onRemove = {
-                                            pendingPhotoDelete = "This photo" to { viewModel.deleteExistingMedia(media.id) }
-                                        },
-                                        onSetCover = { viewModel.setCover(media.id) },
-                                        onToggleSelect = {
-                                            swapFrom = if (swapFrom == index) null else viewModel.toggleSwap(swapFrom, index).let { null }
-                                        },
-                                    )
-                                }
-                                index < existingCount + state.localPhotos.size -> {
-                                    val path = state.localPhotos[index - existingCount]
-                                    PhotoTile(
-                                        model = java.io.File(path),
-                                        selected = swapFrom == index,
-                                        onRemove = {
-                                            pendingPhotoDelete = "This photo" to { viewModel.removePhoto(path) }
-                                        },
-                                        onToggleSelect = {
-                                            swapFrom = if (swapFrom == index) null else viewModel.toggleSwap(swapFrom, index).let { null }
-                                        },
-                                    )
-                                }
-                                else -> AddPhotoTile(
-                                    onAdd = {
-                                        photoPicker.launch(
-                                            androidx.activity.result.PickVisualMediaRequest(
-                                                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
-                                            ),
-                                        )
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
-                        }
-                    }
-                    // Pad short rows so tiles keep grid width.
-                    repeat(columns - rowIndices.size) { Spacer(Modifier.weight(1f)) }
-                }
-                Spacer(Modifier.height(8.dp))
-            }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
@@ -994,19 +1074,26 @@ internal fun millisToIsoDate(millis: Long): String =
         .toLocalDate()
         .toString()
 
+/** Render model for the editor's preview pane. */
+private sealed interface PreviewItem {
+    data class Text(val md: String) : PreviewItem
+    data class Photos(val urls: List<String>) : PreviewItem
+}
+
 /**
  * Read-only render of the story — the preview mode of the editor. Reuses
- * the same visual language as [EntryDetailScreen].
+ * the same visual language as [EntryDetailScreen]: the first photo is the
+ * hero, text blocks render as markdown, photo blocks as strips.
  */
 @Composable
 private fun EntryPreviewPane(
     title: String,
-    body: String,
     entryDate: String,
-    photos: List<Any>,
+    items: List<PreviewItem>,
 ) {
+    val allPhotos = items.filterIsInstance<PreviewItem.Photos>().flatMap { it.urls }
     Column(modifier = Modifier.fillMaxSize()) {
-        if (photos.isNotEmpty()) {
+        if (allPhotos.isNotEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1014,7 +1101,7 @@ private fun EntryPreviewPane(
                     .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)),
             ) {
                 io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
-                    model = photos.first(),
+                    model = allPhotos.first(),
                     contentDescription = "Hero photo",
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
@@ -1034,28 +1121,42 @@ private fun EntryPreviewPane(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        if (body.isNotBlank()) {
-            Spacer(Modifier.height(16.dp))
-            io.github.nimbleflux.wayli.designsystem.MarkdownText(markdown = body)
-        }
 
-        if (photos.size > 1) {
-            Spacer(Modifier.height(20.dp))
-            Text("Photos", style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            androidx.compose.foundation.lazy.LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(photos.size - 1) { i ->
-                    io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
-                        model = photos[i + 1],
-                        contentDescription = "Photo",
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxWidth(0.45f)
-                            .height(140.dp)
-                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)),
-                    )
+        val heroShown = allPhotos.isNotEmpty()
+        var firstPhotoBlockHandled = false
+        for (item in items) {
+            when (item) {
+                is PreviewItem.Text -> {
+                    Spacer(Modifier.height(16.dp))
+                    io.github.nimbleflux.wayli.designsystem.MarkdownText(markdown = item.md)
+                }
+                is PreviewItem.Photos -> {
+                    // The first photo of the first block already renders as
+                    // the hero above — don't repeat it in the strip.
+                    val strip = if (heroShown && !firstPhotoBlockHandled) {
+                        firstPhotoBlockHandled = true
+                        item.urls.drop(1)
+                    } else {
+                        item.urls
+                    }
+                    if (strip.isNotEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        androidx.compose.foundation.lazy.LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(strip.size) { i ->
+                                io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
+                                    model = strip[i],
+                                    contentDescription = "Photo",
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.45f)
+                                        .height(140.dp)
+                                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)),
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

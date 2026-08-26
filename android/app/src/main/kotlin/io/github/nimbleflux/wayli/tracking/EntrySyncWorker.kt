@@ -14,6 +14,9 @@ import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import io.github.nimbleflux.wayli.feature.media.MediaUploader
+import io.github.nimbleflux.wayli.feature.travel.EditorBlockModel
+import io.github.nimbleflux.wayli.feature.travel.EntryPublisher
+import io.github.nimbleflux.wayli.feature.travel.ExistingMedia
 import io.github.nimbleflux.wayli.repo.DraftRepository
 import io.github.nimbleflux.wayli.repo.TripRepository
 import java.io.File
@@ -24,6 +27,10 @@ import java.util.concurrent.TimeUnit
  * (`PENDING_SYNC`): create/update the entry, upload attached photos,
  * attach media rows, then delete the draft. Runs with a network constraint
  * and exponential backoff, mirroring [GpsUploadWorker].
+ *
+ * Block-based drafts (the current editor's format) go through
+ * [EntryPublisher]; legacy drafts from pre-blocks builds keep the old
+ * body-token pipeline.
  */
 @HiltWorker
 class EntrySyncWorker @AssistedInject constructor(
@@ -32,6 +39,7 @@ class EntrySyncWorker @AssistedInject constructor(
     private val draftRepo: DraftRepository,
     private val tripRepo: TripRepository,
     private val mediaUploader: MediaUploader,
+    private val entryPublisher: EntryPublisher,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -48,49 +56,13 @@ class EntrySyncWorker @AssistedInject constructor(
             }
             val date = draft.entryDate.ifBlank { java.time.LocalDate.now().toString() }
 
-            // Upload photos first so the body's inline wayli-draft: tokens can
-            // be rewritten to final storage paths before the entry is written.
-            val uploadedPaths = mutableListOf<String>()
-            var mediaFailed = false
-            draft.photos.forEach { path ->
-                val uploaded = mediaUploader.uploadPhoto(applicationContext, Uri.fromFile(File(path)))
-                val storagePath = uploaded.getOrNull()
-                if (storagePath == null) {
-                    mediaFailed = true
-                } else {
-                    uploadedPaths += storagePath
-                }
-            }
-            if (mediaFailed) {
-                anyFailed = true
-                continue
-            }
-            val body = io.github.nimbleflux.wayli.feature.travel.InlineMedia
-                .rewriteDraftTokens(draft.body.trim()) { index -> uploadedPaths.getOrNull(index) }
-                .takeIf { it.isNotBlank() }
-
-            val existingId = draft.entryId
-            val entryId: String? = if (existingId != null) {
-                val updated = tripRepo.updateEntry(existingId, title, date, body)
-                if (updated.isFailure) null else existingId
+            val blocks = EditorBlockModel.decode(draft.blocks)
+            val published = if (blocks != null) {
+                publishBlocks(draft.tripId, draft.entryId, title, date, blocks)
             } else {
-                tripRepo.createEntry(draft.tripId, title, date, body).getOrNull()?.id
+                publishLegacy(draft.tripId, draft.entryId, title, date, draft.body, draft.photos)
             }
-            if (entryId == null) {
-                anyFailed = true
-                continue
-            }
-
-            uploadedPaths.forEachIndexed { index, storagePath ->
-                if (tripRepo.createMedia(draft.tripId, entryId, storagePath, index).isFailure) {
-                    mediaFailed = true
-                }
-            }
-            if (mediaFailed) {
-                anyFailed = true
-                continue
-            }
-            draftRepo.delete(draft.id)
+            if (published) draftRepo.delete(draft.id) else anyFailed = true
         }
 
         return if (anyFailed) {
@@ -98,6 +70,66 @@ class EntrySyncWorker @AssistedInject constructor(
         } else {
             Result.success()
         }
+    }
+
+    /** The current path — full block publish via the shared publisher. */
+    private suspend fun publishBlocks(
+        tripId: String,
+        entryId: String?,
+        title: String,
+        date: String,
+        blocks: List<io.github.nimbleflux.wayli.feature.travel.EditorBlockDto>,
+    ): Boolean {
+        val existingMedia = entryId?.let { id ->
+            tripRepo.listMedia(tripId, id).getOrNull().orEmpty().mapNotNull { media ->
+                mediaUploader.resolveDisplayUrl(storagePath = media.storagePath)
+                    ?.let { ExistingMedia(media.id, it, media.storagePath) }
+            }
+        }.orEmpty()
+        return runCatching {
+            entryPublisher.publish(
+                tripId = tripId,
+                entryId = entryId,
+                title = title,
+                entryDate = date,
+                editorBlocks = blocks,
+                existingMedia = existingMedia,
+            )
+        }.isSuccess
+    }
+
+    /** Legacy drafts (body + local photos, pre-blocks format). */
+    private suspend fun publishLegacy(
+        tripId: String,
+        entryId: String?,
+        title: String,
+        date: String,
+        body: String,
+        photoPaths: List<String>,
+    ): Boolean {
+        // Upload photos first so the body's inline wayli-draft: tokens can
+        // be rewritten to final storage paths before the entry is written.
+        val uploadedPaths = mutableListOf<String>()
+        photoPaths.forEach { path ->
+            val uploaded = mediaUploader.uploadPhoto(applicationContext, Uri.fromFile(File(path)))
+            val storagePath = uploaded.getOrNull() ?: return false
+            uploadedPaths += storagePath
+        }
+        val legacyBody = io.github.nimbleflux.wayli.feature.travel.InlineMedia
+            .rewriteDraftTokens(body.trim()) { index -> uploadedPaths.getOrNull(index) }
+            .takeIf { it.isNotBlank() }
+
+        val targetId: String = if (entryId != null) {
+            if (tripRepo.updateEntry(entryId, title, date, legacyBody).isFailure) return false
+            entryId
+        } else {
+            tripRepo.createEntry(tripId, title, date, legacyBody).getOrNull()?.id ?: return false
+        }
+
+        uploadedPaths.forEachIndexed { index, storagePath ->
+            if (tripRepo.createMedia(tripId, targetId, storagePath, index).isFailure) return false
+        }
+        return true
     }
 
     companion object {

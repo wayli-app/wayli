@@ -4,6 +4,8 @@ import io.github.nimbleflux.fluxbase.FluxbaseClient
 import io.github.nimbleflux.fluxbase.from
 import io.github.nimbleflux.wayli.models.Trip
 import io.github.nimbleflux.wayli.models.TripEntry
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -93,19 +95,53 @@ class TripRepository @Inject constructor(
     /**
      * Create a journal entry for a trip.
      */
-    suspend fun createEntry(tripId: String, title: String, entryDate: String, body: String?): Result<TripEntry> =
+    suspend fun createEntry(
+        tripId: String,
+        title: String,
+        entryDate: String,
+        body: String?,
+        blocks: JsonObject? = null,
+    ): Result<TripEntry> =
         runCatching {
             val values = buildMap<String, Any> {
                 put("trip_id", tripId)
+                put("user_id", requireNotNull(currentUserId()) { "Not signed in" })
                 put("title", title)
                 put("entry_date", entryDate)
                 put("status", "published")
                 body?.takeIf { it.isNotBlank() }?.let { put("body", it) }
+                blocks?.let { put("blocks", it.toPlainValue()) }
             }
             client.from<TripEntry>("trip_entries").insert(values)
             // Re-query (PostgREST insert doesn't return the row by default).
             listEntries(tripId).getOrThrow().first { it.title == title }
         }
+
+    /**
+     * Current auth user id — writes must include user_id explicitly: the
+     * tables API doesn't inject it and the RLS insert policies compare it
+     * with auth.uid().
+     */
+    private fun currentUserId(): String? = client.auth.currentSession?.user?.id
+
+    /**
+     * Fluxbase's payload builder stringifies kotlinx [JsonPrimitive] leaves
+     * verbatim (toString() keeps the quotes), so jsonb values like `blocks`
+     * must cross as plain maps/lists/scalars instead.
+     */
+    private fun JsonElement.toPlainValue(): Any = when (this) {
+        is JsonObject -> entries.associate { (k, v) -> k to v.toPlainValue() }
+        is kotlinx.serialization.json.JsonArray -> map { it.toPlainValue() }
+        is kotlinx.serialization.json.JsonPrimitive -> when {
+            isString -> content
+            content == "true" -> true
+            content == "false" -> false
+            content.toIntOrNull() != null -> content.toInt()
+            content.toLongOrNull() != null -> content.toLong()
+            content.toDoubleOrNull() != null -> content.toDouble()
+            else -> content
+        }
+    }
 
     /**
      * List journal entries for a trip — newest first (latest posts at the top
@@ -132,19 +168,36 @@ class TripRepository @Inject constructor(
 
     /**
      * Update an existing journal entry (owner-only via RLS).
+     *
+     * @param blocks new block structure, or null to leave it unchanged.
      */
     suspend fun updateEntry(
         entryId: String,
         title: String,
         entryDate: String,
         body: String?,
+        blocks: JsonElement? = null,
     ): Result<Unit> = runCatching {
         val values = buildMap<String, Any> {
             put("title", title)
             put("entry_date", entryDate)
             body?.takeIf { it.isNotBlank() }?.let { put("body", it) }
+            blocks?.let { put("blocks", it.toPlainValue()) }
         }
         client.from<TripEntry>("trip_entries").eq("id", entryId).update(values)
+    }
+
+    /**
+     * Rewrite sort_order so the entry's media matches the order photos
+     * appear in the block structure (keeps legacy cover-from-first-media
+     * fallbacks aligned with the visual order).
+     */
+    suspend fun updateMediaSortOrder(orderedMediaIds: List<String>): Result<Unit> = runCatching {
+        orderedMediaIds.forEachIndexed { index, mediaId ->
+            client.from<io.github.nimbleflux.wayli.models.TripMedia>("trip_media")
+                .eq("id", mediaId)
+                .update(mapOf("sort_order" to index))
+        }
     }
 
     /** Point the entry's cover_media_id at a specific media row (the hero). */
@@ -197,12 +250,24 @@ class TripRepository @Inject constructor(
     ): Result<Unit> = runCatching {
         val values = buildMap<String, Any> {
             put("trip_id", tripId)
+            put("user_id", requireNotNull(currentUserId()) { "Not signed in" })
             entryId?.let { put("entry_id", it) }
             put("storage_path", storagePath)
             put("media_type", "image")
             put("sort_order", sortOrder)
         }
         client.from<io.github.nimbleflux.wayli.models.TripMedia>("trip_media").insert(values)
+    }
+
+    /**
+     * Link media rows (created with a null entry_id while an entry was being
+     * composed) to their entry.
+     */
+    suspend fun attachMediaToEntry(entryId: String, mediaIds: List<String>): Result<Unit> = runCatching {
+        if (mediaIds.isEmpty()) return@runCatching
+        client.from<io.github.nimbleflux.wayli.models.TripMedia>("trip_media")
+            .`in`("id", mediaIds)
+            .update(mapOf("entry_id" to entryId))
     }
 
     /**

@@ -16,8 +16,10 @@ import androidx.room.Upsert
  *   (offline) — [io.github.nimbleflux.wayli.tracking.EntrySyncWorker]
  *   retries and deletes the draft once published.
  *
- * Photos are app-local copies (filesDir/entry-media) so drafts survive
- * process death and revoked content-URI grants.
+ * Content lives in [blocks] (serialized editor block list: text blocks and
+ * photo blocks referencing server media ids or local photo file paths).
+ * The legacy [body]/[photoPaths] columns only serve PENDING_SYNC drafts
+ * written by pre-blocks builds.
  */
 @Entity(
     tableName = "draft_entries",
@@ -30,9 +32,11 @@ data class DraftEntryEntity(
     val entryId: String? = null,
     val title: String = "",
     val body: String = "",
+    /** JSON editor-block list; null for legacy drafts (body + photoPaths). */
+    val blocks: String? = null,
     val entryDate: String = "",
     val status: String = Status.DRAFT,
-    /** Comma-joined local photo file paths. */
+    /** Comma-joined local photo file paths (legacy drafts only). */
     val photoPaths: String = "",
     val updatedAt: Long = System.currentTimeMillis(),
 ) {
