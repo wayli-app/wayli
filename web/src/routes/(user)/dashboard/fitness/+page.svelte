@@ -16,6 +16,7 @@
 
 	let activities = $state<FitnessActivity[]>([]);
 	let loading = $state(true);
+	let loadError = $state<string | null>(null);
 
 	const groups = $derived(groupByMonth(activities));
 
@@ -28,9 +29,13 @@
 				.range(0, 199);
 			if (error) {
 				console.error('Failed to load fitness activities:', error);
+				loadError = error.message || 'Failed to load activities';
 			} else {
 				activities = (data ?? []) as unknown as FitnessActivity[];
 			}
+		} catch (err) {
+			console.error('Failed to load fitness activities:', err);
+			loadError = err instanceof Error ? err.message : 'Failed to load activities';
 		} finally {
 			loading = false;
 		}
@@ -85,6 +90,14 @@
 					<div class="bg-muted h-3 w-40 rounded-full"></div>
 				</div>
 			{/each}
+		</div>
+	{:else if loadError}
+		<!-- Error state -->
+		<div class="border-border rounded-xl border bg-red-50 p-8 text-center dark:bg-red-950/30">
+			<p class="font-medium text-red-700 dark:text-red-300">{loadError}</p>
+			<p class="text-muted-foreground mt-1 text-sm">
+				{t('fitness.emptyHint')}
+			</p>
 		</div>
 	{:else if activities.length === 0}
 		<!-- Empty state -->

@@ -24,6 +24,7 @@
 	import TwoFactorSetup from '$lib/components/TwoFactorSetup.svelte';
 	import TwoFactorDisable from '$lib/components/TwoFactorDisable.svelte';
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
+	import Switch from '$lib/components/ui/Switch.svelte';
 	import PannableCover from '$lib/components/PannableCover.svelte';
 	import { translate, changeLocale, currentLocale, type SupportedLocale } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
@@ -2104,18 +2105,17 @@
 							{t('accountSettings.fitnessBetaDescription')}
 						</p>
 					</div>
-					<label class="flex shrink-0 cursor-pointer items-center gap-2">
-						<input
-							type="checkbox"
-							bind:checked={fitnessBetaEnabled}
-							onchange={handleFitnessBetaToggle}
-							disabled={fitnessBetaUpdating}
-							class="border-border h-4 w-4 rounded"
-						/>
+					<div class="flex shrink-0 items-center gap-2">
 						{#if fitnessBetaUpdating}
 							<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
 						{/if}
-					</label>
+						<Switch
+							bind:checked={fitnessBetaEnabled}
+							onchange={() => handleFitnessBetaToggle()}
+							disabled={fitnessBetaUpdating}
+							label={t('accountSettings.fitnessBetaName')}
+						/>
+					</div>
 				</div>
 			</div>
 		</div>

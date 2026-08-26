@@ -54,8 +54,9 @@ export async function loadFitnessBeta(): Promise<void> {
 }
 
 /**
- * Persist the opt-in flag (read-modify-write so other preference keys are
- * preserved) and update the store.
+ * Persist the opt-in flag and update the store. Read-modify-writes the
+ * preferences jsonb; creates the preferences row when the user has none yet
+ * (an UPDATE alone would silently affect 0 rows and lose the toggle).
  */
 export async function setFitnessBeta(enabled: boolean): Promise<void> {
 	const { data: userData } = await fluxbase.auth.getUser();
@@ -76,13 +77,28 @@ export async function setFitnessBeta(enabled: boolean): Promise<void> {
 		beta_features: { ...(current.beta_features ?? {}), fitness: enabled }
 	};
 
-	const { error } = await fluxbase
-		.from<Record<string, any>>('user_preferences')
-		.update({ preferences, updated_at: new Date().toISOString() })
-		.eq('id', userId);
-
-	if (error) {
-		throw new Error(error.message || 'Failed to update fitness beta opt-in');
+	if (prefs) {
+		const { error } = await fluxbase
+			.from<Record<string, any>>('user_preferences')
+			.update({ preferences, updated_at: new Date().toISOString() })
+			.eq('id', userId);
+		if (error) {
+			throw new Error(error.message || 'Failed to update fitness beta opt-in');
+		}
+	} else {
+		const { error } = await fluxbase
+			.from<Record<string, any>>('user_preferences')
+			.insert({ id: userId, preferences });
+		if (error) {
+			// Lost a race with another tab creating the row — update instead.
+			const { error: updateError } = await fluxbase
+				.from<Record<string, any>>('user_preferences')
+				.update({ preferences, updated_at: new Date().toISOString() })
+				.eq('id', userId);
+			if (updateError) {
+				throw new Error(updateError.message || 'Failed to update fitness beta opt-in');
+			}
+		}
 	}
 
 	fitnessBetaState.enabled = enabled;
