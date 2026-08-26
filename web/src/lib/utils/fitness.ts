@@ -133,14 +133,54 @@ export function groupByMonth(
 	return Array.from(groups.entries()).map(([label, list]) => ({ label, activities: list }));
 }
 
-/** Elevation gain in meters from a chronological altitude series (nulls skipped). */
-export function elevationGain(altitudes: Array<number | null | undefined>): number {
+/**
+ * Elevation gain in meters from a chronological altitude series (nulls
+ * skipped). Uses a hysteresis threshold so per-sample barometric noise
+ * doesn't accumulate: only sustained changes of at least `threshold` meters
+ * count, and the anchor only moves once such a change is confirmed.
+ */
+export function elevationGain(altitudes: Array<number | null | undefined>, threshold = 2): number {
 	let gain = 0;
-	let prev: number | null = null;
+	let anchor: number | null = null;
 	for (const alt of altitudes) {
 		if (alt == null || Number.isNaN(alt)) continue;
-		if (prev !== null && alt > prev) gain += alt - prev;
-		prev = alt;
+		if (anchor === null) {
+			anchor = alt;
+			continue;
+		}
+		const delta = alt - anchor;
+		if (Math.abs(delta) >= threshold) {
+			if (delta > 0) gain += delta;
+			anchor = alt;
+		}
 	}
 	return Math.round(gain);
+}
+
+/**
+ * Centered moving average over a window of `halfWindow * 2 + 1` samples,
+ * skipping nulls. Tames single-sample GPS speed spikes for display purposes.
+ */
+export function movingAverage(
+	values: Array<number | null | undefined>,
+	halfWindow: number
+): Array<number | null> {
+	const result: Array<number | null> = new Array(values.length).fill(null);
+	for (let i = 0; i < values.length; i++) {
+		let sum = 0;
+		let n = 0;
+		for (
+			let j = Math.max(0, i - halfWindow);
+			j <= Math.min(values.length - 1, i + halfWindow);
+			j++
+		) {
+			const v = values[j];
+			if (v != null && !Number.isNaN(v)) {
+				sum += v;
+				n++;
+			}
+		}
+		result[i] = n > 0 ? sum / n : null;
+	}
+	return result;
 }

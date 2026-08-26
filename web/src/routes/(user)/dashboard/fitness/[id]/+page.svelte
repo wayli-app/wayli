@@ -12,6 +12,7 @@
 		formatDistance,
 		formatDuration,
 		formatSpeed,
+		movingAverage,
 		sportTheme,
 		type FitnessActivity
 	} from '$lib/utils/fitness';
@@ -30,7 +31,10 @@
 		lat: number;
 		lon: number;
 		altitude: number | null;
+		/** tracker_data.speed is km/h, derived by DB trigger from consecutive-point geometry */
 		speed: number | null;
+		/** Geometry-derived speeds are jittery; charts and map colours use this ~30 s average */
+		speedSmooth: number | null;
 		hr: number | null;
 		power: number | null;
 	}
@@ -68,8 +72,8 @@
 			color: theme.stroke,
 			area: true,
 			points: track
-				.filter((p) => p.speed != null)
-				.map((p) => ({ t: p.t, v: Math.round((p.speed as number) * 36) / 10 }))
+				.filter((p) => p.speedSmooth != null)
+				.map((p) => ({ t: p.t, v: Math.round((p.speedSmooth as number) * 10) / 10 }))
 		}
 	]);
 
@@ -195,6 +199,7 @@
 				lon: p.lon,
 				altitude: p.altitude,
 				speed: p.speed,
+				speedSmooth: null,
 				hr: m?.hr ?? null,
 				power: m?.power ?? null
 			});
@@ -203,7 +208,17 @@
 
 		// Downsample for rendering if enormous (keep the tail intact)
 		const stride = Math.max(1, Math.ceil(merged.length / 6000));
-		track = stride > 1 ? merged.filter((_, i) => i % stride === 0) : merged;
+		const sampled = stride > 1 ? merged.filter((_, i) => i % stride === 0) : merged;
+
+		// ~30 s centered average (window scales with the sampling stride)
+		const smoothed = movingAverage(
+			sampled.map((p) => p.speed),
+			Math.max(3, Math.round(15 / stride))
+		);
+		for (let i = 0; i < sampled.length; i++) {
+			sampled[i].speedSmooth = smoothed[i];
+		}
+		track = sampled;
 	}
 
 	// ── Map rendering ──
@@ -285,7 +300,7 @@
 					[b.lat, b.lon]
 				],
 				{
-					color: speedColor(b.speed != null ? b.speed * 3.6 : null),
+					color: speedColor(b.speedSmooth),
 					weight: 4,
 					opacity: 0.9,
 					lineCap: 'round'

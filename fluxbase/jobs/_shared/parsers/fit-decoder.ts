@@ -277,6 +277,26 @@ export function resolveSportTag(
   return 'fitness';
 }
 
+/**
+ * Manufacturers whose devices write the record speed field in km/h instead of
+ * the FIT-profile-mandated m/s (observed on Bryton cycling computers: session
+ * summary speeds are standard m/s, per-record speeds are km/h — both use the
+ * same ×1000 scale, only the unit differs).
+ */
+const KMH_RECORD_SPEED_MANUFACTURERS = new Set([255, 267]);
+
+/**
+ * Convert a decoded record speed to the km/h convention used by the
+ * tracker_data.speed column (the distance trigger derives/overwrites it in
+ * km/h; the input value only survives on sub-second-gap rows).
+ */
+export function recordSpeedToKmh(manufacturer: number | undefined, decodedSpeed: number): number {
+  if (manufacturer !== undefined && KMH_RECORD_SPEED_MANUFACTURERS.has(manufacturer)) {
+    return decodedSpeed;
+  }
+  return decodedSpeed * 3.6;
+}
+
 const textDecoder = new TextDecoder('utf-8');
 
 /**

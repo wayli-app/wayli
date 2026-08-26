@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
 	decodeFitStream,
+	recordSpeedToKmh,
 	resolveSportTag,
 	type FitFileId,
 	type FitRecord,
@@ -21,6 +22,20 @@ import {
 // Tests run from web/ via `bun run test:unit`; the fixture lives at the repo root.
 const FIT_FILE = resolve(process.cwd(), '../260816195715.fit');
 const fileAvailable = existsSync(FIT_FILE);
+
+describe('recordSpeedToKmh unit correction', () => {
+	it('passes km/h record speeds from affected manufacturers through', () => {
+		// Bryton (255/267) writes the record speed field in km/h already.
+		expect(recordSpeedToKmh(267, 32.2)).toBe(32.2);
+		expect(recordSpeedToKmh(255, 36)).toBe(36);
+	});
+
+	it('converts standard m/s record speeds to the km/h column convention', () => {
+		// Garmin (1) and unknown manufacturers follow the FIT profile (m/s).
+		expect(recordSpeedToKmh(1, 8.94)).toBeCloseTo(32.18, 2);
+		expect(recordSpeedToKmh(undefined, 10)).toBeCloseTo(36, 2);
+	});
+});
 
 function streamFromFile(path: string, chunkSize = 4096): ReadableStream<Uint8Array> {
 	const bytes = new Uint8Array(readFileSync(path));

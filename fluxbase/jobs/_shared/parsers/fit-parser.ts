@@ -10,6 +10,7 @@
 
 import {
   decodeFitStream,
+  recordSpeedToKmh,
   resolveSportTag,
   type FitFileId,
   type FitRecord,
@@ -168,12 +169,19 @@ export async function parseStream(
 
       if (r.positionLat === undefined || r.positionLon === undefined) return;
 
+      // tracker_data.speed is a km/h column (the distance trigger derives it
+      // in km/h and overwrites the value on ≥1 s gaps; the input survives
+      // only on sub-second-gap rows). file_id (manufacturer) arrives before
+      // the first record, so the Bryton km/h quirk is handled from point one.
+      const speedKmh =
+        r.speedMs !== undefined ? recordSpeedToKmh(fileId?.manufacturer, r.speedMs) : undefined;
+
       pointBuffer.push({
         lat: r.positionLat,
         lon: r.positionLon,
         ele: r.altitudeM,
         time: r.timestamp,
-        speed: r.speedMs,
+        speed: speedKmh,
         heading: r.headingDeg,
         extendedData: { fitness: true }
       });
