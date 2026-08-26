@@ -96,7 +96,8 @@
 			"travel": "Voyage",
 			"explore": "Explorer",
 			"feed": "Alimentation",
-			"friends": "Amis"
+			"friends": "Amis",
+			"fitness": "Fitness"
 		},
 		"validation": {
 			"fillAllFields": "Veuillez remplir tous les champs",
@@ -547,7 +548,9 @@
 		"more": "Plus",
 		"distancePerDay": "distance par jour",
 		"whenYouMoveMost": "Quand vous bougez le plus",
-		"speedAxisLabel": "km/h, coloré par mode dominant"
+		"speedAxisLabel": "km/h, coloré par mode dominant",
+		"fitnessSessions": "Séances de sport",
+		"fitnessInPeriod": "{count} séances de sport visibles"
 	},
 	"connections": {
 		"title": "Relations",
@@ -629,7 +632,9 @@
 		"exportStartFailed": "Échec du démarrage de l'exportation. Veuillez réessayer.",
 		"exportStarted": "Exportation démarrée : vous serez averti lorsqu'elle sera prête.",
 		"polarstepsDescription": "Importez des trajets, des entrées de journal, des données GPS et des photos à partir d'une exportation Polarsteps (.zip)",
-		"subtitle": "Importez ou exportez vos données de localisation"
+		"subtitle": "Importez ou exportez vos données de localisation",
+		"fitDescription": "Fichier d'activité Garmin FIT de montres sportives et compteurs vélo",
+		"fitBetaRequired": "Activez la bêta Fitness dans les paramètres du compte pour importer des fichiers .fit"
 	},
 	"trips": {
 		"title": "Voyages",
@@ -1065,7 +1070,11 @@
 		"samplingSaved": "Configuration d'échantillonnage enregistrée",
 		"samplingTitle": "Échantillonnage automatique des données",
 		"maxTripExclusionsReached": "Maximum de 10 zones exclues atteint. Supprimez-en un pour en ajouter un autre.",
-		"apiKeyCheckFailed": "Impossible de vérifier le statut de la clé API. Si une clé est configurée, elle est toujours utilisée."
+		"apiKeyCheckFailed": "Impossible de vérifier le statut de la clé API. Si une clé est configurée, elle est toujours utilisée.",
+		"betaFeaturesTitle": "Fonctions bêta",
+		"betaFeaturesDescription": "Activez des fonctions expérimentales. Elles peuvent changer ou disparaître à tout moment.",
+		"fitnessBetaName": "Fitness",
+		"fitnessBetaDescription": "Importez des fichiers d'entraînement .fit et analysez vos séances (fréquence cardiaque, puissance, cadence)."
 	},
 	"serverAdmin": {
 		"title": "Paramètres d'administration du serveur",
@@ -1866,5 +1875,50 @@
 		"technicalDetails": "Détails techniques",
 		"webNotSearched": "Une recherche sur le Web était prévue mais n'a pas été exécutée",
 		"webSearched": "J'ai cherché sur le Web"
+	},
+	"fitness": {
+		"title": "Fitness",
+		"subtitle": "Vos séances d'entraînement importées",
+		"betaBadge": "Bêta",
+		"emptyTitle": "Pas encore de séances de sport",
+		"emptyHint": "Importez un fichier .fit depuis la page Import/Export pour voir vos entraînements ici.",
+		"backToList": "Toutes les activités",
+		"previous": "Activité précédente",
+		"next": "Activité suivante",
+		"loading": "Chargement de l'activité…",
+		"notFound": "Activité introuvable",
+		"start": "Départ",
+		"finish": "Arrivée",
+		"chart": {
+			"heartRate": "Fréquence cardiaque (bpm)",
+			"power": "Puissance (W)",
+			"speed": "Vitesse (km/h)",
+			"hint": "Survolez les graphiques pour lire les valeurs et localiser l'instant sur la carte"
+		},
+		"stats": {
+			"distance": "Distance",
+			"movingTime": "Temps en mouvement",
+			"avgSpeed": "Vitesse moy.",
+			"elevation": "Dénivelé positif",
+			"avgHr": "FC moy.",
+			"maxHr": "FC max.",
+			"avgPower": "Puissance moy.",
+			"maxPower": "Puissance max.",
+			"avgCadence": "Cadence moy.",
+			"calories": "Calories",
+			"device": "Appareil",
+			"source": "Fichier source"
+		},
+		"sport": {
+			"cycling": "Cyclisme",
+			"running": "Course à pied",
+			"walking": "Marche",
+			"hiking": "Randonnée",
+			"swimming": "Natation",
+			"e_biking": "Vélo électrique",
+			"rowing": "Aviron",
+			"fitness": "Entraînement",
+			"generic": "Activité"
+		}
 	}
 }

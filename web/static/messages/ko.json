@@ -96,7 +96,8 @@
 			"travel": "여행하다",
 			"explore": "탐구하다",
 			"feed": "밥을 먹이다",
-			"friends": "친구"
+			"friends": "친구",
+			"fitness": "피트니스"
 		},
 		"validation": {
 			"fillAllFields": "모든 필드를 작성해 주세요.",
@@ -547,7 +548,9 @@
 		"more": "많음",
 		"distancePerDay": "하루 거리",
 		"whenYouMoveMost": "가장 많이 이동하는 시간",
-		"speedAxisLabel": "km/h, 주요 모드별 색상"
+		"speedAxisLabel": "km/h, 주요 모드별 색상",
+		"fitnessSessions": "피트니스 세션",
+		"fitnessInPeriod": "보기 중인 피트니스 세션 {count}개"
 	},
 	"connections": {
 		"title": "사이",
@@ -629,7 +632,9 @@
 		"exportStartFailed": "내보내기를 시작하지 못했습니다. 다시 시도해 주세요.",
 		"exportStarted": "내보내기가 시작되었습니다. 준비가 되면 알림을 받게 됩니다.",
 		"polarstepsDescription": "Polarsteps 내보내기(.zip)에서 여행, 일지 항목, GPS 데이터 및 사진을 가져옵니다.",
-		"subtitle": "위치 데이터 가져오기 또는 내보내기"
+		"subtitle": "위치 데이터 가져오기 또는 내보내기",
+		"fitDescription": "스포츠 워치와 사이클 컴퓨터의 Garmin FIT 활동 파일",
+		"fitBetaRequired": ".fit 파일을 가져오려면 계정 설정에서 피트니스 베타를 활성화하세요"
 	},
 	"trips": {
 		"title": "여행",
@@ -1066,7 +1071,11 @@
 		"samplingSaved": "샘플링 구성이 저장되었습니다.",
 		"samplingTitle": "자동 데이터 샘플링",
 		"maxTripExclusionsReached": "최대 10개의 제외 영역에 도달했습니다. 다른 하나를 추가하려면 하나를 제거하세요.",
-		"apiKeyCheckFailed": "API 키 상태를 확인할 수 없습니다. 키가 구성되어 있으면 여전히 사용 중입니다."
+		"apiKeyCheckFailed": "API 키 상태를 확인할 수 없습니다. 키가 구성되어 있으면 여전히 사용 중입니다.",
+		"betaFeaturesTitle": "베타 기능",
+		"betaFeaturesDescription": "실험적 기능을 활성화합니다. 언제든 변경되거나 제거될 수 있습니다.",
+		"fitnessBetaName": "피트니스",
+		"fitnessBetaDescription": ".fit 운동 파일을 가져와 세션(심박수, 파워, 케이던스)을 분석합니다."
 	},
 	"serverAdmin": {
 		"title": "서버 관리자 설정",
@@ -1867,5 +1876,50 @@
 		"technicalDetails": "기술적인 세부사항",
 		"webNotSearched": "웹 검색이 계획되었지만 실행되지 않았습니다.",
 		"webSearched": "웹에서 검색함"
+	},
+	"fitness": {
+		"title": "피트니스",
+		"subtitle": "가져온 운동 세션",
+		"betaBadge": "베타",
+		"emptyTitle": "아직 피트니스 활동이 없습니다",
+		"emptyHint": "가져오기/내보내기 페이지에서 .fit 파일을 가져오면 여기에 운동이 표시됩니다.",
+		"backToList": "모든 활동",
+		"previous": "이전 활동",
+		"next": "다음 활동",
+		"loading": "활동 불러오는 중…",
+		"notFound": "활동을 찾을 수 없습니다",
+		"start": "시작",
+		"finish": "도착",
+		"chart": {
+			"heartRate": "심박수(bpm)",
+			"power": "파워(W)",
+			"speed": "속도(km/h)",
+			"hint": "차트 위에 마우스를 올리면 값을 확인하고 지도에서 해당 순간을 찾을 수 있습니다"
+		},
+		"stats": {
+			"distance": "거리",
+			"movingTime": "이동 시간",
+			"avgSpeed": "평균 속도",
+			"elevation": "고도 상승",
+			"avgHr": "평균 심박",
+			"maxHr": "최대 심박",
+			"avgPower": "평균 파워",
+			"maxPower": "최대 파워",
+			"avgCadence": "평균 케이던스",
+			"calories": "칼로리",
+			"device": "기기",
+			"source": "소스 파일"
+		},
+		"sport": {
+			"cycling": "사이클링",
+			"running": "러닝",
+			"walking": "워킹",
+			"hiking": "하이킹",
+			"swimming": "수영",
+			"e_biking": "전동자전거",
+			"rowing": "로잉",
+			"fitness": "운동",
+			"generic": "활동"
+		}
 	}
 }
