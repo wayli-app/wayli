@@ -1936,6 +1936,24 @@
 			"saveFailed": "更新活动失败",
 			"deleted": "活动已删除",
 			"deleteFailed": "删除活动失败"
+		},
+		"sharing": {
+			"section": "健身分享",
+			"defaultAudience": "默认可见范围",
+			"defaultAudienceHint": "未单独设置的活动的可见范围——可在列表或详情页按活动更改。",
+			"private": "私密",
+			"friends": "朋友",
+			"public": "公开",
+			"default": "默认",
+			"privacyRadius": "隐私区域半径",
+			"privacyRadiusHint": "分享的轨迹会省略距离家庭地址和排除区域该距离内的点。",
+			"saved": "分享设置已保存",
+			"saveFailed": "保存分享设置失败",
+			"overrideChanged": "分享范围已更新",
+			"updateFailed": "更新分享范围失败",
+			"linkCopied": "分享链接已复制",
+			"linkCopiedPrivate": "链接已复制——该活动为私密，仅你本人可以打开",
+			"copyFailed": "无法复制链接"
 		}
 	}
 }

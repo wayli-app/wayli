@@ -1932,6 +1932,24 @@
 			"saveFailed": "Error al actualizar la actividad",
 			"deleted": "Actividad eliminada",
 			"deleteFailed": "Error al eliminar la actividad"
+		},
+		"sharing": {
+			"section": "Compartir fitness",
+			"defaultAudience": "Audiencia predeterminada",
+			"defaultAudienceHint": "Audiencia para actividades sin su propia preferencia: cámbiala por actividad en la lista o la página de detalle.",
+			"private": "Privado",
+			"friends": "Amigos",
+			"public": "Público",
+			"default": "Predeterminado",
+			"privacyRadius": "Radio de zona de privacidad",
+			"privacyRadiusHint": "Las rutas compartidas omiten puntos dentro de esta distancia de tu domicilio y zonas de exclusión.",
+			"saved": "Ajustes de uso compartido guardados",
+			"saveFailed": "No se pudieron guardar los ajustes",
+			"overrideChanged": "Uso compartido actualizado",
+			"updateFailed": "No se pudo actualizar el uso compartido",
+			"linkCopied": "Enlace copiado",
+			"linkCopiedPrivate": "Enlace copiado: la actividad es privada, solo tú puedes abrirla",
+			"copyFailed": "No se pudo copiar el enlace"
 		}
 	}
 }

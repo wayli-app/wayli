@@ -1930,6 +1930,24 @@
       "saveFailed": "Failed to update the activity",
       "deleted": "Activity deleted",
       "deleteFailed": "Failed to delete the activity"
+    },
+    "sharing": {
+      "section": "Fitness sharing",
+      "defaultAudience": "Default audience",
+      "defaultAudienceHint": "Audience for activities without their own override — change it per activity from the list or detail page.",
+      "private": "Private",
+      "friends": "Friends",
+      "public": "Public",
+      "default": "Default",
+      "privacyRadius": "Privacy zone radius",
+      "privacyRadiusHint": "Shared tracks skip points within this distance of your home address and trip-exclusion zones.",
+      "saved": "Sharing settings saved",
+      "saveFailed": "Failed to save sharing settings",
+      "overrideChanged": "Sharing updated",
+      "updateFailed": "Failed to update sharing",
+      "linkCopied": "Share link copied",
+      "linkCopiedPrivate": "Link copied — the activity is private, only you can open it",
+      "copyFailed": "Could not copy the link"
     }
   }
 }

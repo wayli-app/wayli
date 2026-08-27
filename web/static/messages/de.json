@@ -1932,6 +1932,24 @@
 			"saveFailed": "Aktualisieren der Aktivität fehlgeschlagen",
 			"deleted": "Aktivität gelöscht",
 			"deleteFailed": "Löschen der Aktivität fehlgeschlagen"
+		},
+		"sharing": {
+			"section": "Fitness teilen",
+			"defaultAudience": "Standardzielgruppe",
+			"defaultAudienceHint": "Zielgruppe für Aktivitäten ohne eigene Einstellung — ändere sie pro Aktivität in der Liste oder Detailseite.",
+			"private": "Privat",
+			"friends": "Freunde",
+			"public": "Öffentlich",
+			"default": "Standard",
+			"privacyRadius": "Privatzonen-Radius",
+			"privacyRadiusHint": "Geteilte Tracks überspringen Punkte in diesem Umkreis um deine Heimatadresse und Trip-Ausschlusszonen.",
+			"saved": "Teileinstellungen gespeichert",
+			"saveFailed": "Teileinstellungen konnten nicht gespeichert werden",
+			"overrideChanged": "Freigabe aktualisiert",
+			"updateFailed": "Freigabe konnte nicht aktualisiert werden",
+			"linkCopied": "Link zum Teilen kopiert",
+			"linkCopiedPrivate": "Link kopiert — die Aktivität ist privat, nur du kannst sie öffnen",
+			"copyFailed": "Link konnte nicht kopiert werden"
 		}
 	}
 }

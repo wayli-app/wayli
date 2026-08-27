@@ -1932,6 +1932,24 @@
 			"saveFailed": "Aggiornamento dell'attività non riuscito",
 			"deleted": "Attività eliminata",
 			"deleteFailed": "Eliminazione dell'attività non riuscita"
+		},
+		"sharing": {
+			"section": "Condivisione fitness",
+			"defaultAudience": "Destinatari predefiniti",
+			"defaultAudienceHint": "Destinatari per le attività senza una propria preferenza — modificabile per attività nell'elenco o nella pagina di dettaglio.",
+			"private": "Privato",
+			"friends": "Amici",
+			"public": "Pubblico",
+			"default": "Predefinito",
+			"privacyRadius": "Raggio zona privacy",
+			"privacyRadiusHint": "Le tracce condivise tralasciano i punti entro questa distanza dall'indirizzo di casa e dalle zone di esclusione.",
+			"saved": "Impostazioni di condivisione salvate",
+			"saveFailed": "Salvataggio delle impostazioni non riuscito",
+			"overrideChanged": "Condivisione aggiornata",
+			"updateFailed": "Aggiornamento della condivisione non riuscito",
+			"linkCopied": "Link copiato",
+			"linkCopiedPrivate": "Link copiato: l'attività è privata, solo tu puoi aprirla",
+			"copyFailed": "Impossibile copiare il link"
 		}
 	}
 }

@@ -1935,6 +1935,24 @@
 			"saveFailed": "Échec de la mise à jour de l'activité",
 			"deleted": "Activité supprimée",
 			"deleteFailed": "Échec de la suppression de l'activité"
+		},
+		"sharing": {
+			"section": "Partage du fitness",
+			"defaultAudience": "Audience par défaut",
+			"defaultAudienceHint": "Audience des activités sans préférence propre — modifiable par activité dans la liste ou la page de détail.",
+			"private": "Privé",
+			"friends": "Amis",
+			"public": "Public",
+			"default": "Par défaut",
+			"privacyRadius": "Rayon de la zone de confidentialité",
+			"privacyRadiusHint": "Les traces partagées omettent les points à cette distance de votre domicile et zones d'exclusion.",
+			"saved": "Paramètres de partage enregistrés",
+			"saveFailed": "Échec de l'enregistrement des paramètres",
+			"overrideChanged": "Partage mis à jour",
+			"updateFailed": "Échec de la mise à jour du partage",
+			"linkCopied": "Lien copié",
+			"linkCopiedPrivate": "Lien copié — l'activité est privée, vous seul pouvez l'ouvrir",
+			"copyFailed": "Impossible de copier le lien"
 		}
 	}
 }

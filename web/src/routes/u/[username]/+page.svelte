@@ -16,12 +16,18 @@
 		EyeOff,
 		Sun,
 		Moon,
-		ArrowLeft
+		ArrowLeft,
+		Activity
 	} from 'lucide-svelte';
 	import { setTheme, state as appState } from '$lib/stores/app-state.svelte';
 	import PannableCover from '$lib/components/PannableCover.svelte';
 	import WorldMap from '$lib/components/WorldMap.svelte';
 	import { translate } from '$lib/i18n';
+	import {
+		formatDistance as fmtDistance,
+		formatDuration as fmtDuration,
+		sportTheme
+	} from '$lib/utils/fitness';
 
 	let t = $derived($translate);
 
@@ -50,6 +56,20 @@
 
 	let profile = $state<Profile | null>(null);
 	let trips = $state<PublicTrip[]>([]);
+	// Shared fitness activities (movement timeline) — gated server-side by
+	// can_see_activity: anon effectively sees only effective 'public' ones.
+	let activities = $state<
+		Array<{
+			id: string;
+			title: string | null;
+			sport: string | null;
+			started_at: string;
+			total_distance_m: number | null;
+			elapsed_time_s: number | null;
+			moving_time_s: number | null;
+		}>
+	>([]);
+	let typeFilter = $state<'all' | 'trips' | 'activities'>('all');
 	let isLoading = $state(true);
 	let notFound = $state(false);
 	let isOwner = $state(false);
@@ -99,27 +119,73 @@
 		return [...codes];
 	});
 
-	const visibleTrips = $derived.by(() => {
-		let result = journalOnly ? trips.filter((t) => (t.entry_count ?? 0) > 0) : [...trips];
+	// Merged movement timeline: trips + shared fitness activities, newest
+	// first, with All / Trips / Activities type filters. Sort keys apply to
+	// both kinds (activities sort by title / moving time / date; entries
+	// counts as 0).
+	type TimelineItem =
+		| { kind: 'trip'; id: string; ts: number; title: string; trip: PublicTrip }
+		| {
+				kind: 'activity';
+				id: string;
+				ts: number;
+				title: string;
+				activity: (typeof activities)[number];
+		  };
+
+	const timeline = $derived.by(() => {
+		const items: TimelineItem[] = [];
+		if (typeFilter !== 'activities') {
+			for (const trip of journalOnly ? trips.filter((t) => (t.entry_count ?? 0) > 0) : trips) {
+				items.push({
+					kind: 'trip',
+					id: trip.id,
+					ts: new Date(trip.start_date).getTime(),
+					title: trip.title || '',
+					trip
+				});
+			}
+		}
+		if (typeFilter !== 'trips') {
+			for (const activity of activities) {
+				items.push({
+					kind: 'activity',
+					id: activity.id,
+					ts: new Date(activity.started_at).getTime(),
+					title: activity.title || '',
+					activity
+				});
+			}
+		}
 		switch (sortBy) {
 			case 'title':
-				result = result.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+				items.sort((a, b) => a.title.localeCompare(b.title));
 				break;
 			case 'duration':
-				result = result.sort((a, b) => {
-					const da = new Date(a.end_date).getTime() - new Date(a.start_date).getTime();
-					const db = new Date(b.end_date).getTime() - new Date(b.start_date).getTime();
+				items.sort((a, b) => {
+					const da =
+						a.kind === 'trip'
+							? new Date(a.trip.end_date).getTime() - new Date(a.trip.start_date).getTime()
+							: (a.activity.moving_time_s ?? a.activity.elapsed_time_s ?? 0) * 1000;
+					const db =
+						b.kind === 'trip'
+							? new Date(b.trip.end_date).getTime() - new Date(b.trip.start_date).getTime()
+							: (b.activity.moving_time_s ?? b.activity.elapsed_time_s ?? 0) * 1000;
 					return db - da;
 				});
 				break;
 			case 'entries':
-				result = result.sort((a, b) => (b.entry_count ?? 0) - (a.entry_count ?? 0));
+				items.sort((a, b) => {
+					const ea = a.kind === 'trip' ? (a.trip.entry_count ?? 0) : 0;
+					const eb = b.kind === 'trip' ? (b.trip.entry_count ?? 0) : 0;
+					return eb - ea;
+				});
 				break;
 			default:
-				result = result.sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''));
+				items.sort((a, b) => b.ts - a.ts);
 		}
-		if (sortReverse) result = result.reverse();
-		return result;
+		if (sortReverse) items.reverse();
+		return items;
 	});
 
 	onMount(async () => {
@@ -181,6 +247,21 @@
 
 			const { data: tripData } = await tripQuery;
 			trips = (tripData as unknown as PublicTrip[]) ?? [];
+
+			// Shared fitness activities for the movement timeline. RLS on the
+			// public view decides what this viewer may see (anon: only
+			// effectively-public ones).
+			try {
+				const { data: activityData } = await fluxbase
+					.from('public_fitness_activities')
+					.select('id, title, sport, started_at, total_distance_m, elapsed_time_s, moving_time_s')
+					.eq('user_id', profile.id)
+					.order('started_at', { ascending: false })
+					.limit(100);
+				activities = (activityData as any[]) ?? [];
+			} catch {
+				// Activities are additive — ignore load errors.
+			}
 
 			// Fetch journal entry counts per trip. Use trip_entries directly
 			// instead of the public_trip_entries view, which can error on
@@ -419,7 +500,7 @@
 
 	<!-- Trip cards -->
 	<div class="mx-auto max-w-6xl px-4 py-10">
-		{#if trips.length === 0}
+		{#if timeline.length === 0}
 			<div class="flex flex-col items-center justify-center py-20 text-center">
 				<Route class="text-muted-foreground mb-4 h-12 w-12 opacity-30" />
 				<p class="text-muted-foreground text-lg">{t('profile.noTrips')}</p>
@@ -427,6 +508,31 @@
 		{:else}
 			<!-- Sort + filter buttons -->
 			<div class="mb-6 flex flex-wrap items-center gap-2">
+				{#if activities.length > 0}
+					<div
+						class="bg-muted mr-1 inline-flex rounded-full p-0.5"
+						role="group"
+						aria-label="Timeline type"
+					>
+						{#each [['all', `${trips.length + activities.length}`], ['trips', `${trips.length}`], ['activities', `${activities.length}`]] as [value, count] (value)}
+							<button
+								type="button"
+								onclick={() => (typeFilter = value as typeof typeFilter)}
+								class="cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-colors {typeFilter ===
+								value
+									? 'bg-background text-foreground shadow-sm'
+									: 'text-muted-foreground hover:text-foreground'}"
+								aria-pressed={typeFilter === value}
+							>
+								{value === 'all'
+									? `All (${count})`
+									: value === 'trips'
+										? `Trips (${count})`
+										: `Activities (${count})`}
+							</button>
+						{/each}
+					</div>
+				{/if}
 				{#each [['recent', 'Recent'], ['duration', 'Longest'], ['entries', 'Most entries'], ['title', 'A–Z']] as [value, label] (value)}
 					<button
 						type="button"
@@ -470,110 +576,152 @@
 				class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4"
 				style="grid-auto-flow: dense; grid-auto-rows: 120px;"
 			>
-				{#each visibleTrips as trip, i (trip.id)}
-					{@const hasJournal = (trip.entry_count ?? 0) > 0}
-					{@const tripDays = Math.max(
-						1,
-						Math.ceil(
-							(new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / 86400000
-						)
-					)}
-					{@const isLarge = hasJournal || tripDays >= 7}
-					<a
-						href="/u/{username}/trips/{trip.id}"
-						class="group animate-fade-in-up relative overflow-hidden rounded-xl shadow-md transition-all duration-500 hover:shadow-xl {isLarge
-							? 'col-span-2 row-span-2'
-							: ''}"
-						style="animation-delay: {i * 40}ms"
-					>
-						<!-- Background image -->
-						{#if trip.image_url}
-							<img
-								src={trip.image_url}
-								alt={trip.title}
-								class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-								loading="lazy"
-							/>
-						{:else}
-							<div class="absolute inset-0 bg-gradient-to-br from-slate-600 to-slate-800"></div>
-						{/if}
-						<!-- Gradient overlay -->
-						<div
-							class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent transition-opacity duration-500 group-hover:from-black/90"
-						></div>
-
-						<!-- Top date badge -->
-						<div class="absolute top-3 left-3 flex gap-2">
+				{#each timeline as item, i (item.kind + ':' + item.id)}
+					{#if item.kind === 'trip'}
+						{@const trip = item.trip}
+						{@const hasJournal = (trip.entry_count ?? 0) > 0}
+						{@const tripDays = Math.max(
+							1,
+							Math.ceil(
+								(new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / 86400000
+							)
+						)}
+						{@const isLarge = hasJournal || tripDays >= 7}
+						<a
+							href="/u/{username}/trips/{trip.id}"
+							class="group animate-fade-in-up relative overflow-hidden rounded-xl shadow-md transition-all duration-500 hover:shadow-xl {isLarge
+								? 'col-span-2 row-span-2'
+								: ''}"
+							style="animation-delay: {i * 40}ms"
+						>
+							<!-- Background image -->
+							{#if trip.image_url}
+								<img
+									src={trip.image_url}
+									alt={trip.title}
+									class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+									loading="lazy"
+								/>
+							{:else}
+								<div class="absolute inset-0 bg-gradient-to-br from-slate-600 to-slate-800"></div>
+							{/if}
+							<!-- Gradient overlay -->
 							<div
-								class="rounded-full bg-black/40 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
-							>
-								{new Date(trip.start_date).toLocaleDateString(undefined, {
-									month: 'short',
-									day: 'numeric',
-									year: 'numeric'
-								})}
-							</div>
-							{#if isOwner && trip.visibility !== 'public'}
-								<div
-									class="flex items-center justify-center rounded-full bg-amber-500/80 p-1.5 text-white backdrop-blur-md"
-									title={trip.visibility}
-								>
-									<EyeOff class="h-3 w-3" />
-								</div>
-							{/if}
-							{#if (trip.entry_count ?? 0) > 0}
-								<div
-									class="flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md"
-								>
-									<BookOpen class="h-3 w-3" />
-									{trip.entry_count}
-								</div>
-							{/if}
-						</div>
+								class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent transition-opacity duration-500 group-hover:from-black/90"
+							></div>
 
-						<!-- Bottom content -->
-						<div class="absolute right-0 bottom-0 left-0 p-3 sm:p-4">
-							<h3
-								class="text-sm font-bold tracking-tight text-white drop-shadow-md sm:text-base {hasJournal
-									? ''
-									: 'truncate'}"
-							>
-								{trip.title}
-							</h3>
-							{#if hasJournal}
-								<div class="mt-0.5 flex items-center gap-2 text-xs text-white/50">
+							<!-- Top date badge -->
+							<div class="absolute top-3 left-3 flex gap-2">
+								<div
+									class="rounded-full bg-black/40 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
+								>
 									{new Date(trip.start_date).toLocaleDateString(undefined, {
-										month: 'short',
-										day: 'numeric'
-									})}
-									– {new Date(trip.end_date).toLocaleDateString(undefined, {
 										month: 'short',
 										day: 'numeric',
 										year: 'numeric'
 									})}
 								</div>
-								{#if (trip.entry_count ?? 0) > 0}
-									<div class="mt-1 flex items-center gap-1 text-[10px] text-white/40">
-										<BookOpen class="h-3 w-3" />
-										{trip.entry_count} entries
+								{#if isOwner && trip.visibility !== 'public'}
+									<div
+										class="flex items-center justify-center rounded-full bg-amber-500/80 p-1.5 text-white backdrop-blur-md"
+										title={trip.visibility}
+									>
+										<EyeOff class="h-3 w-3" />
 									</div>
 								{/if}
-							{/if}
-							{#if trip.metadata?.primaryCity && hasJournal}
-								<div class="mt-1 flex items-center gap-1 text-[10px] text-white/40">
-									<MapPin class="h-3 w-3" />
-									{trip.metadata.primaryCity}
-								</div>
-							{/if}
-							{#if trip.metadata?.image_attribution?.photographer}
-								<p class="mt-0.5 text-[9px] text-white/25">
-									{t('common.photoCredit', {
-										photographer: trip.metadata.image_attribution.photographer
+								{#if (trip.entry_count ?? 0) > 0}
+									<div
+										class="flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md"
+									>
+										<BookOpen class="h-3 w-3" />
+										{trip.entry_count}
+									</div>
+								{/if}
+							</div>
+
+							<!-- Bottom content -->
+							<div class="absolute right-0 bottom-0 left-0 p-3 sm:p-4">
+								<h3
+									class="text-sm font-bold tracking-tight text-white drop-shadow-md sm:text-base {hasJournal
+										? ''
+										: 'truncate'}"
+								>
+									{trip.title}
+								</h3>
+								{#if hasJournal}
+									<div class="mt-0.5 flex items-center gap-2 text-xs text-white/50">
+										{new Date(trip.start_date).toLocaleDateString(undefined, {
+											month: 'short',
+											day: 'numeric'
+										})}
+										– {new Date(trip.end_date).toLocaleDateString(undefined, {
+											month: 'short',
+											day: 'numeric',
+											year: 'numeric'
+										})}
+									</div>
+									{#if (trip.entry_count ?? 0) > 0}
+										<div class="mt-1 flex items-center gap-1 text-[10px] text-white/40">
+											<BookOpen class="h-3 w-3" />
+											{trip.entry_count} entries
+										</div>
+									{/if}
+								{/if}
+								{#if trip.metadata?.primaryCity && hasJournal}
+									<div class="mt-1 flex items-center gap-1 text-[10px] text-white/40">
+										<MapPin class="h-3 w-3" />
+										{trip.metadata.primaryCity}
+									</div>
+								{/if}
+								{#if trip.metadata?.image_attribution?.photographer}
+									<p class="mt-0.5 text-[9px] text-white/25">
+										{t('common.photoCredit', {
+											photographer: trip.metadata.image_attribution.photographer
+										})}
+									</p>
+								{/if}
+							</div>
+						</a>
+					{:else}
+						{@const sport = sportTheme(item.activity.sport)}
+						<a
+							href="/u/{username}/fitness/{item.activity.id}"
+							class="group animate-fade-in-up relative col-span-1 row-span-1 overflow-hidden rounded-xl shadow-md transition-all duration-500 hover:shadow-xl"
+							style="animation-delay: {i *
+								40}ms; background: linear-gradient(135deg, {sport.stroke}dd, {sport.stroke}88);"
+						>
+							<!-- Top date badge -->
+							<div class="absolute top-3 left-3">
+								<div
+									class="rounded-full bg-black/40 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
+								>
+									{new Date(item.activity.started_at).toLocaleDateString(undefined, {
+										month: 'short',
+										day: 'numeric',
+										year: 'numeric'
 									})}
-								</p>
-							{/if}
-						</div>
-					</a>
+								</div>
+							</div>
+
+							<!-- Bottom content -->
+							<div class="absolute right-0 bottom-0 left-0 p-3 sm:p-4">
+								<div class="flex items-center gap-1.5">
+									<Activity class="h-3.5 w-3.5 text-white/70" />
+									<h3 class="truncate text-sm font-bold tracking-tight text-white drop-shadow-md">
+										{item.activity.title ?? t(sport.labelKey)}
+									</h3>
+								</div>
+								<div class="mt-0.5 flex items-baseline gap-2 text-xs text-white/75 tabular-nums">
+									<span class="font-semibold">{fmtDistance(item.activity.total_distance_m)}</span>
+									<span
+										>{fmtDuration(
+											item.activity.moving_time_s ?? item.activity.elapsed_time_s
+										)}</span
+									>
+								</div>
+							</div>
+						</a>
+					{/if}
 				{/each}
 			</div>
 		{/if}
