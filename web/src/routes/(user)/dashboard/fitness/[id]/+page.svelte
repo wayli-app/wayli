@@ -5,11 +5,15 @@
 		ChevronRight,
 		Clock,
 		Flag,
-		MapPin,
+		Globe,
+		Link2,
 		Loader2,
+		Lock,
+		MapPin,
 		Pencil,
 		Route,
-		Trash2
+		Trash2,
+		Users
 	} from 'lucide-svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import { page } from '$app/state';
@@ -20,6 +24,13 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { watchMapTheme, createBasemapLayer } from '$lib/utils/map-theme';
 	import FitnessChart from '$lib/components/fitness/FitnessChart.svelte';
+	import {
+		currentUsername,
+		fitnessSharing,
+		loadFitnessSharing,
+		setActivityVisibility,
+		type FitnessAudience
+	} from '$lib/stores/fitness-sharing.svelte';
 	import {
 		cumulativeDistances,
 		elevationGain,
@@ -49,6 +60,52 @@
 	// ── Deletion ──
 	let confirmingDelete = $state(false);
 	let deleting = $state(false);
+
+	// ── Sharing ──
+	let username = $state<string | null>(null);
+
+	const CYCLE: (FitnessAudience | null)[] = [null, 'private', 'friends', 'public'];
+
+	function effectiveVisibility(): FitnessAudience {
+		return activity?.visibility ?? fitnessSharing().default;
+	}
+
+	function visibilityLabel(): string {
+		const override = activity?.visibility ?? null;
+		if (override === null) {
+			return `${t('fitness.sharing.default')} (${t('fitness.sharing.' + fitnessSharing().default)})`;
+		}
+		return t('fitness.sharing.' + override);
+	}
+
+	async function cycleVisibility() {
+		if (!activity) return;
+		const next = CYCLE[(CYCLE.indexOf(activity.visibility ?? null) + 1) % CYCLE.length];
+		const previous = activity.visibility ?? null;
+		activity.visibility = next;
+		try {
+			await setActivityVisibility(activity.id, next);
+			toast.success(t('fitness.sharing.overrideChanged'));
+		} catch (err) {
+			activity.visibility = previous;
+			toast.error(err instanceof Error ? err.message : t('fitness.sharing.updateFailed'));
+		}
+	}
+
+	async function copyShareLink() {
+		if (!activity || !username) return;
+		const url = `${window.location.origin}/u/${username}/fitness/${activity.id}`;
+		try {
+			await navigator.clipboard.writeText(url);
+			toast.success(
+				effectiveVisibility() === 'private'
+					? t('fitness.sharing.linkCopiedPrivate')
+					: t('fitness.sharing.linkCopied')
+			);
+		} catch {
+			toast.error(t('fitness.sharing.copyFailed'));
+		}
+	}
 
 	interface TrackPoint {
 		t: number;
@@ -133,6 +190,7 @@
 		prevActivity = null;
 		nextActivity = null;
 		track = [];
+		void loadFitnessSharing();
 
 		try {
 			const { data, error } = await fluxbase
@@ -145,6 +203,11 @@
 				return;
 			}
 			activity = data as unknown as FitnessActivity;
+
+			// Username for share links (once)
+			if (!username) {
+				username = await currentUsername();
+			}
 
 			// Neighbour sessions for prev/next navigation
 			const [prevRes, nextRes] = await Promise.all([
@@ -669,6 +732,33 @@
 					</div>
 					{#if !editing}
 						<div class="flex shrink-0 items-center gap-2">
+							<button
+								type="button"
+								class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg bg-white/15 text-white transition-colors hover:bg-white/25"
+								onclick={copyShareLink}
+								aria-label="Copy share link"
+								title="Copy share link"
+							>
+								<Link2 class="h-4 w-4" />
+							</button>
+							<button
+								type="button"
+								class="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-white/15 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/25"
+								onclick={cycleVisibility}
+								aria-label={`Sharing: ${visibilityLabel()} — click to change`}
+								title={`Sharing: ${visibilityLabel()} — click to change`}
+							>
+								{#if activity.visibility === null}
+									<Clock class="h-4 w-4" />
+								{:else if effectiveVisibility() === 'private'}
+									<Lock class="h-4 w-4" />
+								{:else if effectiveVisibility() === 'friends'}
+									<Users class="h-4 w-4" />
+								{:else}
+									<Globe class="h-4 w-4" />
+								{/if}
+								{visibilityLabel()}
+							</button>
 							<button
 								type="button"
 								class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg bg-white/15 text-white transition-colors hover:bg-white/25"

@@ -1932,6 +1932,24 @@
 			"saveFailed": "Bijwerken van de activiteit mislukt",
 			"deleted": "Activiteit verwijderd",
 			"deleteFailed": "Verwijderen van de activiteit mislukt"
+		},
+		"sharing": {
+			"section": "Fitness delen",
+			"defaultAudience": "Standaarddoelgroep",
+			"defaultAudienceHint": "Doelgroep voor activiteiten zonder eigen voorkeur — pas het per activiteit aan in de lijst of detailpagina.",
+			"private": "Privé",
+			"friends": "Vrienden",
+			"public": "Openbaar",
+			"default": "Standaard",
+			"privacyRadius": "Privacyzone-radius",
+			"privacyRadiusHint": "Gedeelde routes slaan punten over binnen deze afstand van je thuisadres en trip-uitzonderingszones.",
+			"saved": "Deelinstellingen opgeslagen",
+			"saveFailed": "Deelinstellingen opslaan mislukt",
+			"overrideChanged": "Delen bijgewerkt",
+			"updateFailed": "Delen bijwerken mislukt",
+			"linkCopied": "Deellink gekopieerd",
+			"linkCopiedPrivate": "Link gekopieerd — de activiteit is privé, alleen jij kunt hem openen",
+			"copyFailed": "Kon de link niet kopiëren"
 		}
 	}
 }

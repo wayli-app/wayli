@@ -24,6 +24,8 @@ export interface FitnessActivity {
 	product: string | null;
 	serial_number: string | null;
 	source_file: string | null;
+	/** Sharing audience override; NULL inherits the global fitness default */
+	visibility: 'private' | 'friends' | 'public' | null;
 	created_at: string | null;
 }
 

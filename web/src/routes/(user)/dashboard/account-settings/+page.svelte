@@ -33,6 +33,12 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { readSetting } from '$lib/utils/settings';
 	import { setFitnessBeta } from '$lib/stores/fitness-beta.svelte';
+	import {
+		fitnessSharing,
+		loadFitnessSharing,
+		saveFitnessSharing,
+		type FitnessAudience
+	} from '$lib/stores/fitness-sharing.svelte';
 	import { FlaskConical } from 'lucide-svelte';
 
 	import { goto } from '$app/navigation';
@@ -114,6 +120,58 @@
 	// because gated UI depends on it.
 	let fitnessBetaEnabled = $state(false);
 	let fitnessBetaUpdating = $state(false);
+
+	// Fitness sharing defaults; persisted immediately like the beta flag.
+	let fitnessDefaultAudience = $state<FitnessAudience>('private');
+	let privacyRadiusInput = $state('250');
+	let fitnessSharingUpdating = $state(false);
+
+	async function initFitnessSharing() {
+		await loadFitnessSharing();
+		fitnessDefaultAudience = fitnessSharing().default;
+		privacyRadiusInput = String(fitnessSharing().privacy_radius_m);
+	}
+
+	async function handleDefaultAudience(next: FitnessAudience) {
+		if (fitnessSharingUpdating || next === fitnessDefaultAudience) return;
+		const previous = fitnessDefaultAudience;
+		fitnessDefaultAudience = next;
+		fitnessSharingUpdating = true;
+		try {
+			await saveFitnessSharing({ default: next });
+			toast.success(t('fitness.sharing.saved'));
+		} catch (error) {
+			fitnessDefaultAudience = previous;
+			console.error('Failed to save fitness sharing default:', error);
+			toast.error(t('fitness.sharing.saveFailed'));
+		} finally {
+			fitnessSharingUpdating = false;
+		}
+	}
+
+	async function handlePrivacyRadius() {
+		if (fitnessSharingUpdating) return;
+		const parsed = Math.round(Number(privacyRadiusInput));
+		if (!Number.isFinite(parsed)) return;
+		const clamped = Math.min(Math.max(parsed, 50), 2000);
+		if (clamped === fitnessSharing().privacy_radius_m) {
+			privacyRadiusInput = String(clamped);
+			return;
+		}
+		const previous = String(fitnessSharing().privacy_radius_m);
+		privacyRadiusInput = String(clamped);
+		fitnessSharingUpdating = true;
+		try {
+			await saveFitnessSharing({ privacy_radius_m: clamped });
+			toast.success(t('fitness.sharing.saved'));
+		} catch (error) {
+			privacyRadiusInput = previous;
+			console.error('Failed to save privacy radius:', error);
+			toast.error(t('fitness.sharing.saveFailed'));
+		} finally {
+			fitnessSharingUpdating = false;
+		}
+	}
 
 	async function handleFitnessBetaToggle() {
 		fitnessBetaUpdating = true;
@@ -536,6 +594,7 @@
 		await check2FAStatus();
 		await loadAISettings();
 		await checkAdminRole();
+		void initFitnessSharing();
 
 		// Show onboarding modal if this is first login
 		if (isOnboarding) {
@@ -2117,6 +2176,64 @@
 						/>
 					</div>
 				</div>
+
+				{#if fitnessBetaEnabled}
+					<div class="border-border mt-6 border-t pt-6">
+						<span class="text-foreground mb-1.5 block text-sm font-medium">
+							{t('fitness.sharing.section')}
+						</span>
+						<p class="text-muted-foreground mb-4 text-sm">
+							{t('fitness.sharing.defaultAudienceHint')}
+						</p>
+						<div class="flex flex-wrap items-center gap-3">
+							<span class="text-muted-foreground w-44 text-sm font-medium">
+								{t('fitness.sharing.defaultAudience')}
+							</span>
+							<div class="bg-muted inline-flex rounded-lg p-0.5" role="group">
+								{#each ['private', 'friends', 'public'] as option (option)}
+									<button
+										type="button"
+										class="cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors {fitnessDefaultAudience ===
+										option
+											? 'bg-background text-foreground shadow-sm'
+											: 'text-muted-foreground hover:text-foreground'}"
+										onclick={() => handleDefaultAudience(option as FitnessAudience)}
+										disabled={fitnessSharingUpdating}
+										aria-pressed={fitnessDefaultAudience === option}
+									>
+										{t('fitness.sharing.' + option)}
+									</button>
+								{/each}
+							</div>
+							{#if fitnessSharingUpdating}
+								<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
+							{/if}
+						</div>
+						<div class="mt-4 flex flex-wrap items-center gap-3">
+							<label class="text-muted-foreground w-44 text-sm font-medium" for="privacy-radius">
+								{t('fitness.sharing.privacyRadius')}
+							</label>
+							<div class="flex items-center gap-2">
+								<input
+									id="privacy-radius"
+									type="number"
+									min="50"
+									max="2000"
+									step="10"
+									bind:value={privacyRadiusInput}
+									onchange={() => handlePrivacyRadius()}
+									onblur={() => handlePrivacyRadius()}
+									disabled={fitnessSharingUpdating}
+									class="border-border bg-background text-foreground w-28 rounded-lg border px-3 py-1.5 text-sm"
+								/>
+								<span class="text-muted-foreground text-sm">m</span>
+							</div>
+							<p class="text-muted-foreground w-full text-xs sm:w-auto sm:flex-1">
+								{t('fitness.sharing.privacyRadiusHint')}
+							</p>
+						</div>
+					</div>
+				{/if}
 			</div>
 		</div>
 

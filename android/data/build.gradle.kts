@@ -7,6 +7,9 @@ plugins {
 }
 
 android {
+    // JVM unit tests touch android.util.Log (SessionArbiter) — no-op it.
+    testOptions { unitTests { isReturnDefaultValues = true } }
+
     namespace = "io.github.nimbleflux.wayli.data"
     compileSdk = 35
 
@@ -45,6 +48,7 @@ dependencies {
 
     // Testing
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.room.testing)
     testImplementation(libs.robolectric)

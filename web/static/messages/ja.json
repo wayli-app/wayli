@@ -1936,6 +1936,24 @@
 			"saveFailed": "アクティビティの更新に失敗しました",
 			"deleted": "アクティビティを削除しました",
 			"deleteFailed": "アクティビティの削除に失敗しました"
+		},
+		"sharing": {
+			"section": "フィットネス共有",
+			"defaultAudience": "デフォルトの公開範囲",
+			"defaultAudienceHint": "個別設定のないアクティビティの公開範囲。一覧や詳細ページで変更できます。",
+			"private": "非公開",
+			"friends": "友だち",
+			"public": "公開",
+			"default": "デフォルト",
+			"privacyRadius": "プライバシーゾーン半径",
+			"privacyRadiusHint": "共有トラックは、自宅住所と除外ゾーンからこの距離内のポイントを省きます。",
+			"saved": "共有設定を保存しました",
+			"saveFailed": "共有設定の保存に失敗しました",
+			"overrideChanged": "共有範囲を更新しました",
+			"updateFailed": "共有範囲の更新に失敗しました",
+			"linkCopied": "共有リンクをコピーしました",
+			"linkCopiedPrivate": "リンクをコピーしました — アクティビティは非公開で、あなたのみ開けます",
+			"copyFailed": "リンクをコピーできませんでした"
 		}
 	}
 }

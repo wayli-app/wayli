@@ -53,6 +53,7 @@ private val EXPORT_FORMATS = listOf("JSON", "GeoJSON", "CSV")
 class ImportExportViewModel @Inject constructor(
     private val demoManager: DemoManager,
     private val client: FluxbaseClient,
+    private val prefsRepo: io.github.nimbleflux.wayli.repo.PreferencesRepository,
 ) : ViewModel() {
 
     val isDemo: Boolean get() = demoManager.isDemoMode
@@ -120,7 +121,16 @@ class ImportExportViewModel @Inject constructor(
                 val bytes = context.contentResolver.openInputStream(uri)?.readBytes()
                     ?: throw Exception("Cannot read file")
                 val fileName = displayName(context, uri) ?: "import-${System.currentTimeMillis()}"
-                val format = detectFormat(fileName)
+                val format = detectImportFormat(fileName)
+                // Fitness files are beta-gated (same as web): refuse the upload
+                // while the opt-in is off instead of failing the job later.
+                if (format == "fit") {
+                    val betaOn = prefsRepo.getPreferences(uid)
+                        .getOrNull()?.let { prefsRepo.fitnessBetaOf(it) } == true
+                    if (!betaOn) {
+                        throw Exception("Fitness files need the Fitness beta — enable it in Preferences first.")
+                    }
+                }
                 val storagePath = "$uid/${System.currentTimeMillis()}-$fileName"
                 client.storage.from("temp-files")
                     .upload(path = storagePath, data = bytes, contentType = "application/octet-stream")
@@ -152,17 +162,19 @@ class ImportExportViewModel @Inject constructor(
         }
         return uri.lastPathSegment
     }
+}
 
-    private fun detectFormat(fileName: String): String {
-        val lower = fileName.substringAfterLast('.', "").lowercase()
-        return when (lower) {
-            "geojson", "json" -> "geojson"
-            "gpx" -> "gpx"
-            "kml" -> "kml"
-            "rec" -> "owntracks"
-            "zip" -> "polarsteps"
-            else -> "geojson"
-        }
+/** Map a picked file name to the data-import job's `format` string. */
+internal fun detectImportFormat(fileName: String): String {
+    val lower = fileName.substringAfterLast('.', "").lowercase()
+    return when (lower) {
+        "geojson", "json" -> "geojson"
+        "gpx" -> "gpx"
+        "kml" -> "kml"
+        "rec" -> "owntracks"
+        "zip" -> "polarsteps"
+        "fit" -> "fit"
+        else -> "geojson"
     }
 }
 
@@ -230,8 +242,9 @@ fun ImportExportScreen(
         // ---- Import ----
         WayliSectionCard(title = "Import") {
             Text(
-                "Import from GeoJSON, GPX, KML, OwnTracks (.rec), or Polarsteps (.zip). " +
-                    "The file is uploaded and processed as a background job.",
+                "Import from GeoJSON, GPX, KML, OwnTracks (.rec), Polarsteps (.zip), or a fitness " +
+                    ".fit file from your sports watch (Fitness beta). The file is uploaded and " +
+                    "processed as a background job.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -246,6 +259,7 @@ fun ImportExportScreen(
                         arrayOf(
                             "application/json", "application/geo+json", "application/gpx+xml",
                             "application/vnd.google-earth.kml+xml", "application/zip",
+                            "application/vnd.ant.fit",
                             "*/*",
                         ),
                     )

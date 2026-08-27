@@ -11,6 +11,7 @@ import io.github.nimbleflux.fluxbase.FluxbaseClient
 import io.github.nimbleflux.wayli.db.PendingPointDao
 import io.github.nimbleflux.wayli.db.WayliDatabase
 import io.github.nimbleflux.wayli.session.DeviceTokenStore
+import io.github.nimbleflux.wayli.session.SessionArbiter
 import javax.inject.Singleton
 
 @Module
@@ -49,8 +50,8 @@ object RepositoryModule {
 
     @Provides
     @Singleton
-    fun provideTripRepository(client: FluxbaseClient, cache: CacheStore): TripRepository =
-        TripRepository(client, cache)
+    fun provideTripRepository(client: FluxbaseClient, cache: CacheStore, arbiter: SessionArbiter): TripRepository =
+        TripRepository(client, cache, arbiter)
 
     @Provides
     @Singleton
@@ -59,13 +60,14 @@ object RepositoryModule {
 
     @Provides
     @Singleton
-    fun provideStatsRepository(client: FluxbaseClient, cache: CacheStore): StatsRepository =
-        StatsRepository(client, cache)
+    fun provideStatsRepository(client: FluxbaseClient, cache: CacheStore, arbiter: SessionArbiter): StatsRepository =
+        StatsRepository(client, cache, arbiter)
 
     @Provides
     @Singleton
     fun provideDeviceTokenRepository(
         client: FluxbaseClient,
         store: DeviceTokenStore,
-    ): DeviceTokenRepository = DeviceTokenRepository(client, store)
+        arbiter: SessionArbiter,
+    ): DeviceTokenRepository = DeviceTokenRepository(client, store, arbiter)
 }

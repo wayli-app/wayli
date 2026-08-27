@@ -303,8 +303,11 @@ private fun HomeContent(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = 16.dp,
-            vertical = 8.dp,
+            start = 16.dp,
+            end = 16.dp,
+            top = 8.dp,
+            // extra room so the last section clears the floating dock
+            bottom = 24.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {

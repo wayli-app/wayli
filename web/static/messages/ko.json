@@ -1936,6 +1936,24 @@
 			"saveFailed": "활동 업데이트에 실패했습니다",
 			"deleted": "활동이 삭제되었습니다",
 			"deleteFailed": "활동 삭제에 실패했습니다"
+		},
+		"sharing": {
+			"section": "피트니스 공유",
+			"defaultAudience": "기본 공개 대상",
+			"defaultAudienceHint": "개별 설정이 없는 활동의 공개 대상입니다. 목록이나 상세 페이지에서 변경할 수 있습니다.",
+			"private": "비공개",
+			"friends": "친구",
+			"public": "공개",
+			"default": "기본값",
+			"privacyRadius": "프라이버시 존 반경",
+			"privacyRadiusHint": "공유 트랙은 집 주소와 제외 구역에서 이 거리 안의 지점을 건너뜁니다.",
+			"saved": "공유 설정 저장됨",
+			"saveFailed": "공유 설정을 저장하지 못했습니다",
+			"overrideChanged": "공유 범위 업데이트됨",
+			"updateFailed": "공유 범위를 업데이트하지 못했습니다",
+			"linkCopied": "공유 링크 복사됨",
+			"linkCopiedPrivate": "링크 복사됨 — 활동이 비공개이므로 나만 열 수 있습니다",
+			"copyFailed": "링크를 복사할 수 없습니다"
 		}
 	}
 }

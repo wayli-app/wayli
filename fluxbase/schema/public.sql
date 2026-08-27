@@ -652,10 +652,12 @@ CREATE TABLE IF NOT EXISTS fitness_activities (
     product text,
     serial_number text,
     source_file text,
+    visibility text,
     created_at timestamptz DEFAULT now(),
     CONSTRAINT fitness_activities_pkey PRIMARY KEY (id),
     CONSTRAINT fitness_activities_user_started_key UNIQUE (user_id, started_at),
     CONSTRAINT fitness_activities_time_order CHECK (ended_at IS NULL OR ended_at >= started_at),
+    CONSTRAINT fitness_activities_visibility_check CHECK (visibility IS NULL OR visibility IN ('private'::text, 'friends'::text, 'public'::text)),
     CONSTRAINT fitness_activities_valid_heartrate CHECK (avg_heartrate IS NULL OR avg_heartrate >= 0 AND avg_heartrate <= 255),
     CONSTRAINT fitness_activities_valid_max_heartrate CHECK (max_heartrate IS NULL OR max_heartrate >= 0 AND max_heartrate <= 255),
     CONSTRAINT fitness_activities_valid_power CHECK (avg_power IS NULL OR avg_power >= 0 AND avg_power <= 65535),
@@ -690,6 +692,8 @@ COMMENT ON COLUMN fitness_activities.elapsed_time_s IS 'Total elapsed time in se
 
 
 COMMENT ON COLUMN fitness_activities.moving_time_s IS 'Timer (moving) time in seconds from the FIT session message';
+
+COMMENT ON COLUMN fitness_activities.visibility IS 'Sharing audience override: private, friends, or public. NULL inherits the user''s global fitness_sharing.default preference (resolved by effective_activity_visibility()).';
 
 --
 -- Name: fitness_records; Type: TABLE; Schema: -; Owner: -
@@ -893,7 +897,7 @@ CREATE TABLE IF NOT EXISTS trips (
     CONSTRAINT trips_plan_visible_to_check CHECK (plan_visible_to IN ('private'::text, 'friends'::text, 'public'::text)),
     CONSTRAINT trips_status_check CHECK (status IN ('active'::text, 'planned'::text, 'completed'::text, 'cancelled'::text, 'pending'::text, 'rejected'::text)),
     CONSTRAINT trips_valid_dates CHECK (end_date >= start_date),
-    CONSTRAINT trips_visibility_check CHECK (visibility IN ('private'::text, 'public'::text, 'unlisted'::text))
+    CONSTRAINT trips_visibility_check CHECK (visibility IN ('private'::text, 'friends'::text, 'public'::text, 'unlisted'::text))
 );
 
 
@@ -2153,6 +2157,13 @@ AS $$
     AND EXISTS(
         SELECT 1 FROM trips WHERE id = trip_uuid
         AND (user_id = auth.uid() OR visibility = 'public'
+             OR visibility = 'friends'
+                AND EXISTS(
+                    SELECT 1 FROM user_connections uc
+                    WHERE uc.status = 'accepted'
+                      AND ((uc.user_id = auth.uid() AND uc.friend_id = trips.user_id)
+                        OR (uc.friend_id = auth.uid() AND uc.user_id = trips.user_id))
+                )
              OR EXISTS(SELECT 1 FROM trip_shares WHERE trip_id = trip_uuid AND shared_with_user_id = auth.uid()))
     ) OR EXISTS(SELECT 1 FROM trips WHERE id = trip_uuid AND visibility = 'public');
 $$;
@@ -2599,6 +2610,171 @@ $$;
 COMMENT ON FUNCTION get_embedding_stats(uuid) IS 'DEPRECATED: Statistics for deprecated embedding infrastructure. This function is kept for backwards compatibility.';
 
 --
+-- Name: jsonb_num(jsonb, text); Type: FUNCTION; Schema: -; Owner: -
+--
+
+-- Numeric field extraction that returns NULL instead of raising on
+-- non-numeric/absent values — home_address and trip_exclusions have been
+-- written in several shapes across platforms, so privacy-zone parsing must
+-- never blow up a track query.
+CREATE OR REPLACE FUNCTION jsonb_num(j jsonb, k text)
+RETURNS double precision
+LANGUAGE sql
+IMMUTABLE
+AS $$
+    SELECT CASE
+        WHEN j IS NULL OR j ->> k IS NULL OR (j ->> k) !~ '^-?[0-9]+(\.[0-9]+)?$'
+            THEN NULL
+        ELSE (j ->> k)::double precision
+    END;
+$$;
+
+--
+-- Name: effective_activity_visibility(uuid); Type: FUNCTION; Schema: -; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION effective_activity_visibility(
+    activity_uuid uuid
+)
+RETURNS text
+LANGUAGE sql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT
+        CASE
+            WHEN fa.visibility IS NOT NULL THEN fa.visibility
+            ELSE COALESCE(
+                NULLIF(
+                    CASE WHEN (up.preferences -> 'fitness_sharing' ->> 'default') IN ('private', 'friends', 'public')
+                         THEN up.preferences -> 'fitness_sharing' ->> 'default'
+                         ELSE NULL
+                    END, ''),
+                'private')
+        END
+    FROM fitness_activities fa
+    LEFT JOIN user_preferences up ON up.id = fa.user_id
+    WHERE fa.id = activity_uuid;
+$$;
+
+COMMENT ON FUNCTION effective_activity_visibility(uuid) IS 'Sharing audience of an activity: the per-activity visibility when set, else the user''s global fitness_sharing.default preference (private when unset).';
+
+--
+-- Name: can_see_activity(uuid); Type: FUNCTION; Schema: -; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION can_see_activity(
+    activity_uuid uuid
+)
+RETURNS boolean
+LANGUAGE sql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT EXISTS(
+        SELECT 1 FROM fitness_activities fa
+        WHERE fa.id = activity_uuid
+          AND (
+              fa.user_id = auth.uid()
+              OR effective_activity_visibility(fa.id) = 'public'
+              OR (effective_activity_visibility(fa.id) = 'friends'
+                  AND auth.uid() IS NOT NULL
+                  AND EXISTS(
+                      SELECT 1 FROM user_connections uc
+                      WHERE uc.status = 'accepted'
+                        AND ((uc.user_id = auth.uid() AND uc.friend_id = fa.user_id)
+                          OR (uc.friend_id = auth.uid() AND uc.user_id = fa.user_id))
+                  ))
+          )
+    );
+$$;
+
+COMMENT ON FUNCTION can_see_activity(uuid) IS 'Whether the caller may see a fitness activity: owner, effective visibility public, or an accepted friend connection when friends. Mirrors can_see_trip().';
+
+--
+-- Name: Users can view fitness activities shared with them; Type: POLICY; Schema: -; Owner: -
+--
+-- Lives here (after its function, before the trips section) rather than with
+-- the other fitness policies: fresh-install top-to-bottom loading needs
+-- can_see_activity() to exist, which needs user_preferences/user_profiles.
+CREATE POLICY "Users can view fitness activities shared with them" ON fitness_activities FOR SELECT TO authenticated USING (can_see_activity(id));
+
+--
+-- Name: privacy_zones(uuid); Type: FUNCTION; Schema: -; Owner: -
+--
+
+-- Points around which shared GPS tracks are clipped: the user's home address
+-- and their trip-exclusion zones. Both sources have been stored in several
+-- JSON shapes (web vs Android vs geocoder payloads), so every known shape is
+-- probed. The radius comes from preferences.fitness_sharing.privacy_radius_m
+-- (default 250 m, clamped to 50–2000 m).
+CREATE OR REPLACE FUNCTION privacy_zones(
+    p_user uuid
+)
+RETURNS TABLE(lat double precision, lng double precision, radius_m double precision)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    WITH r AS (
+        SELECT COALESCE(
+            LEAST(GREATEST(jsonb_num(up.preferences -> 'fitness_sharing', 'privacy_radius_m'), 50), 2000),
+            250
+        ) AS radius
+        FROM user_preferences up
+        WHERE up.id = p_user
+    ),
+    home AS (
+        SELECT
+            COALESCE(
+                jsonb_num(p.home_address, 'lat'),
+                jsonb_num(p.home_address -> 'location', 'lat'),
+                jsonb_num(p.home_address -> 'coordinates', 'lat')
+            ) AS lat,
+            COALESCE(
+                jsonb_num(p.home_address, 'lng'),
+                jsonb_num(p.home_address, 'lon'),
+                jsonb_num(p.home_address -> 'location', 'lng'),
+                jsonb_num(p.home_address -> 'location', 'lon'),
+                jsonb_num(p.home_address -> 'coordinates', 'lng'),
+                jsonb_num(p.home_address -> 'coordinates', 'lon')
+            ) AS lng
+        FROM user_profiles p
+        WHERE p.id = p_user AND p.home_address IS NOT NULL
+    ),
+    excl AS (
+        SELECT
+            COALESCE(
+                jsonb_num(e -> 'location', 'lat'),
+                jsonb_num(e -> 'location' -> 'coordinates', 'lat'),
+                jsonb_num(e, 'lat')
+            ) AS lat,
+            COALESCE(
+                jsonb_num(e -> 'location', 'lng'),
+                jsonb_num(e -> 'location', 'lon'),
+                jsonb_num(e -> 'location' -> 'coordinates', 'lng'),
+                jsonb_num(e -> 'location' -> 'coordinates', 'lon'),
+                jsonb_num(e, 'lng'),
+                jsonb_num(e, 'lon')
+            ) AS lng
+        FROM user_preferences up,
+             jsonb_array_elements(CASE WHEN jsonb_typeof(up.trip_exclusions) = 'array'
+                                        THEN up.trip_exclusions ELSE '[]'::jsonb END) AS e
+        WHERE up.id = p_user
+    )
+    SELECT home.lat, home.lng, r.radius FROM home, r
+    WHERE home.lat IS NOT NULL AND home.lng IS NOT NULL
+    UNION ALL
+    SELECT excl.lat, excl.lng, r.radius FROM excl, r
+    WHERE excl.lat IS NOT NULL AND excl.lng IS NOT NULL;
+$$;
+
+COMMENT ON FUNCTION privacy_zones(uuid) IS 'Privacy zones (home address + trip exclusions, any stored JSON shape) with the user''s privacy radius in meters. Shared-track RPCs drop tracker points within this radius of any zone.';
+
+--
 -- Name: get_public_trip_track(uuid); Type: FUNCTION; Schema: -; Owner: -
 --
 
@@ -2634,15 +2810,29 @@ BEGIN
     END IF;
 
     RETURN QUERY
+    WITH zones AS MATERIALIZED (
+        SELECT * FROM privacy_zones(trip_user_id)
+    )
     SELECT
-        ST_Y(location::public.geometry)::double precision AS lat,
-        ST_X(location::public.geometry)::double precision AS lng,
+        ST_Y(tracker_data.location::public.geometry)::double precision AS lat,
+        ST_X(tracker_data.location::public.geometry)::double precision AS lng,
         tracker_data.recorded_at
     FROM tracker_data
-    WHERE user_id = trip_user_id
-        AND recorded_at >= trip_start::timestamptz
-        AND recorded_at <= (trip_end + INTERVAL '1 day')::timestamptz
-    ORDER BY recorded_at;
+    WHERE tracker_data.user_id = trip_user_id
+        AND tracker_data.recorded_at >= trip_start::timestamptz
+        AND tracker_data.recorded_at <= (trip_end + INTERVAL '1 day')::timestamptz
+        -- Privacy clipping: never serve points within the owner's privacy
+        -- zones (home address + trip exclusions) — a shared trip must not
+        -- reveal where the user lives.
+        AND NOT EXISTS (
+            SELECT 1 FROM zones z
+            WHERE ST_DWithin(
+                tracker_data.location::geography,
+                ST_SetSRID(ST_MakePoint(z.lng, z.lat), 4326)::geography,
+                z.radius_m
+            )
+        )
+    ORDER BY tracker_data.recorded_at;
 END;
 $$;
 
@@ -2650,7 +2840,73 @@ $$;
 -- Name: get_public_trip_track(uuid); Type: FUNCTION; Schema: -; Owner: -
 --
 
-COMMENT ON FUNCTION get_public_trip_track(uuid) IS 'Returns the raw GPS track for a trip. Gated by can_see_gps(trip_uuid) (owner, or gps_visible_to permits the caller). SECURITY DEFINER — bypasses tracker_data RLS, which has no anon/public SELECT policy.';
+COMMENT ON FUNCTION get_public_trip_track(uuid) IS 'Returns the GPS track for a trip, with points inside the owner''s privacy zones (home + trip exclusions) clipped out. Gated by can_see_gps(trip_uuid) (owner, or gps_visible_to permits the caller). SECURITY DEFINER — bypasses tracker_data RLS, which has no anon/public SELECT policy.';
+
+--
+-- Name: get_public_activity_track(uuid); Type: FUNCTION; Schema: -; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION get_public_activity_track(
+    activity_uuid uuid
+)
+RETURNS TABLE(lat double precision, lng double precision, recorded_at timestamptz, speed numeric)
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    act_user_id uuid;
+    act_started timestamptz;
+    act_ended timestamptz;
+BEGIN
+    -- Gate access via can_see_activity(): owner, or the effective sharing
+    -- audience (per-activity override or global default) permits the caller.
+    IF NOT can_see_activity(activity_uuid) THEN
+        RETURN;
+    END IF;
+
+    SELECT user_id, started_at, COALESCE(ended_at, started_at + INTERVAL '24 hours')
+    INTO act_user_id, act_started, act_ended
+    FROM fitness_activities
+    WHERE id = activity_uuid;
+
+    IF NOT FOUND THEN
+        RETURN;
+    END IF;
+
+    RETURN QUERY
+    WITH zones AS MATERIALIZED (
+        SELECT * FROM privacy_zones(act_user_id)
+    )
+    SELECT
+        ST_Y(tracker_data.location::public.geometry)::double precision AS lat,
+        ST_X(tracker_data.location::public.geometry)::double precision AS lng,
+        tracker_data.recorded_at,
+        tracker_data.speed
+    FROM tracker_data
+    WHERE tracker_data.user_id = act_user_id
+        AND tracker_data.recorded_at >= act_started
+        AND tracker_data.recorded_at <= act_ended
+        -- Privacy clipping: identical to get_public_trip_track — no shared
+        -- points within the owner's privacy zones.
+        AND NOT EXISTS (
+            SELECT 1 FROM zones z
+            WHERE ST_DWithin(
+                tracker_data.location::geography,
+                ST_SetSRID(ST_MakePoint(z.lng, z.lat), 4326)::geography,
+                z.radius_m
+            )
+        )
+    ORDER BY tracker_data.recorded_at;
+END;
+$$;
+
+--
+-- Name: get_public_activity_track(uuid); Type: FUNCTION; Schema: -; Owner: -
+--
+
+COMMENT ON FUNCTION get_public_activity_track(uuid) IS 'Returns the GPS track + device speed for a fitness activity, with points inside the owner''s privacy zones (home + trip exclusions) clipped out. Gated by can_see_activity(activity_uuid). SECURITY DEFINER — bypasses tracker_data RLS, which has no anon/public SELECT policy. Heart-rate/power/cadence records are never served here — only the owner reads fitness_records.';
 
 --
 -- Name: get_shared_trip(text); Type: FUNCTION; Schema: -; Owner: -
@@ -4982,7 +5238,7 @@ CREATE POLICY trip_shares_select ON trip_shares FOR SELECT TO PUBLIC USING ((sha
 -- Name: trips_select; Type: POLICY; Schema: -; Owner: -
 --
 
-CREATE POLICY trips_select ON trips FOR SELECT TO PUBLIC USING ((user_id = auth.uid()) OR (visibility = 'public') OR (EXISTS ( SELECT 1 FROM trip_shares WHERE ((trip_shares.trip_id = trips.id) AND (trip_shares.shared_with_user_id = auth.uid())))));
+CREATE POLICY trips_select ON trips FOR SELECT TO PUBLIC USING ((user_id = auth.uid()) OR (visibility = 'public') OR (EXISTS ( SELECT 1 FROM trip_shares WHERE ((trip_shares.trip_id = trips.id) AND (trip_shares.shared_with_user_id = auth.uid())))) OR ((visibility = 'friends'::text) AND (auth.uid() IS NOT NULL) AND (EXISTS ( SELECT 1 FROM user_connections uc WHERE ((uc.status = 'accepted'::text) AND (((uc.user_id = auth.uid()) AND (uc.friend_id = trips.user_id)) OR ((uc.friend_id = auth.uid()) AND (uc.user_id = trips.user_id))))))));
 
 --
 -- Name: user_profiles_select_admin; Type: POLICY; Schema: -; Owner: -
@@ -5277,7 +5533,9 @@ CREATE OR REPLACE VIEW public_trip_entries AS
      JOIN trips t ON t.id = e.trip_id
   WHERE e.status = 'published'::text AND (t.user_id = auth.uid() OR t.visibility = 'public'::text OR (EXISTS ( SELECT 1
            FROM trip_shares
-          WHERE trip_shares.trip_id = t.id AND trip_shares.shared_with_user_id = auth.uid())));
+          WHERE trip_shares.trip_id = t.id AND trip_shares.shared_with_user_id = auth.uid())) OR (t.visibility = 'friends'::text AND auth.uid() IS NOT NULL AND EXISTS ( SELECT 1
+           FROM user_connections uc
+          WHERE uc.status = 'accepted'::text AND ((uc.user_id = auth.uid() AND uc.friend_id = t.user_id) OR (uc.friend_id = auth.uid() AND uc.user_id = t.user_id)))));
 
 --
 -- Name: public_trip_media; Type: VIEW; Schema: -; Owner: -
@@ -5298,7 +5556,35 @@ CREATE OR REPLACE VIEW public_trip_media AS
            FROM trips t
           WHERE t.id = m.trip_id AND (t.user_id = auth.uid() OR t.visibility = 'public'::text OR (EXISTS ( SELECT 1
                    FROM trip_shares
-                  WHERE trip_shares.trip_id = t.id AND trip_shares.shared_with_user_id = auth.uid())))));
+                  WHERE trip_shares.trip_id = t.id AND trip_shares.shared_with_user_id = auth.uid())) OR (t.visibility = 'friends'::text AND auth.uid() IS NOT NULL AND EXISTS ( SELECT 1
+                   FROM user_connections uc
+                  WHERE uc.status = 'accepted'::text AND ((uc.user_id = auth.uid() AND uc.friend_id = t.user_id) OR (uc.friend_id = auth.uid() AND uc.user_id = t.user_id)))))));
+
+--
+-- Name: public_fitness_activities; Type: VIEW; Schema: -; Owner: -
+--
+
+-- Public-surface projection of shared fitness activities. Column allowlist:
+-- excludes health metrics (avg/max heart rate, power, cadence) and device
+-- identity (serial_number, source_file) — the public page shows summary,
+-- track, and speed only. Access-gated by can_see_activity(); anon viewers
+-- effectively see only effective-visibility 'public' rows.
+CREATE OR REPLACE VIEW public_fitness_activities AS
+ SELECT fa.id,
+    fa.user_id,
+    fa.title,
+    fa.description,
+    fa.sport,
+    fa.sub_sport,
+    fa.started_at,
+    fa.ended_at,
+    fa.total_distance_m,
+    fa.elapsed_time_s,
+    fa.moving_time_s,
+    fa.calories,
+    effective_activity_visibility(fa.id) AS effective_visibility
+   FROM fitness_activities fa
+  WHERE can_see_activity(fa.id);
 
 --
 -- Name: visible_plan_items; Type: VIEW; Schema: -; Owner: -
@@ -5629,6 +5915,36 @@ GRANT EXECUTE ON FUNCTION get_points_within_radius(center_lat double precision, 
 --
 
 GRANT EXECUTE ON FUNCTION get_public_trip_track(trip_uuid uuid) TO anon;
+
+--
+-- Name: get_public_activity_track(activity_uuid uuid); Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT EXECUTE ON FUNCTION get_public_activity_track(activity_uuid uuid) TO anon;
+
+--
+-- Name: get_public_activity_track(activity_uuid uuid); Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT EXECUTE ON FUNCTION get_public_activity_track(activity_uuid uuid) TO authenticated;
+
+--
+-- Name: get_public_activity_track(activity_uuid uuid); Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT EXECUTE ON FUNCTION get_public_activity_track(activity_uuid uuid) TO service_role;
+
+--
+-- Name: get_public_activity_track(activity_uuid uuid); Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT EXECUTE ON FUNCTION get_public_activity_track(activity_uuid uuid) TO tenant_migration_role;
+
+--
+-- Name: get_public_activity_track(activity_uuid uuid); Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT EXECUTE ON FUNCTION get_public_activity_track(activity_uuid uuid) TO tenant_service;
 
 --
 -- Name: get_public_trip_track(trip_uuid uuid); Type: PRIVILEGE; Schema: privileges; Owner: -
@@ -6460,6 +6776,20 @@ GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE trip_shares TO authenticated;
 GRANT SELECT ON TABLE trips TO anon;
 
 --
+-- Name: trip_shares; Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+-- Readable by anon so the trips_select policy's trip_shares subquery is
+-- evaluable for anonymous visitors (RLS still hides every row from them).
+GRANT SELECT ON TABLE trip_shares TO anon;
+
+--
+-- Name: user_connections; Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+-- Readable by anon for the same reason (friends checks inside trips_select;
+-- RLS hides every row from anonymous callers).
+GRANT SELECT ON TABLE user_connections TO anon;
+
+--
 -- Name: trips; Type: PRIVILEGE; Schema: privileges; Owner: -
 --
 
@@ -6646,6 +6976,18 @@ GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE my_pending_trips TO tenant_service
 GRANT SELECT ON TABLE public_profiles TO anon;
 
 --
+-- Name: public_fitness_activities; Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT SELECT ON TABLE public_fitness_activities TO anon;
+
+--
+-- Name: public_fitness_activities; Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT SELECT ON TABLE public_fitness_activities TO authenticated;
+
+--
 -- Name: public_profiles; Type: PRIVILEGE; Schema: privileges; Owner: -
 --
 
@@ -6656,6 +6998,12 @@ GRANT SELECT ON TABLE public_profiles TO authenticated;
 --
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE public_profiles TO service_role;
+
+--
+-- Name: public_fitness_activities; Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT SELECT ON TABLE public_fitness_activities TO service_role;
 
 --
 -- Name: public_profiles; Type: PRIVILEGE; Schema: privileges; Owner: -

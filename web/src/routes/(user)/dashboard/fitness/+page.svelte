@@ -1,9 +1,26 @@
 <script lang="ts">
-	import { Activity, ChevronRight, Dumbbell, UploadCloud } from 'lucide-svelte';
+	import {
+		Activity,
+		ChevronRight,
+		Dumbbell,
+		Globe,
+		Lock,
+		Share2,
+		UploadCloud,
+		Users
+	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
 
 	import { translate } from '$lib/i18n';
 	import { fluxbase } from '$lib/fluxbase';
+	import {
+		currentUsername,
+		fitnessSharing,
+		loadFitnessSharing,
+		setActivityVisibility,
+		type FitnessAudience
+	} from '$lib/stores/fitness-sharing.svelte';
 	import {
 		formatDistance,
 		formatDuration,
@@ -17,22 +34,28 @@
 	let activities = $state<FitnessActivity[]>([]);
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);
+	let username = $state<string | null>(null);
 
 	const groups = $derived(groupByMonth(activities));
 
 	onMount(async () => {
+		void loadFitnessSharing();
 		try {
-			const { data, error } = await fluxbase
-				.from<Record<string, any>>('fitness_activities')
-				.select('*')
-				.order('started_at', { ascending: false })
-				.range(0, 199);
-			if (error) {
-				console.error('Failed to load fitness activities:', error);
-				loadError = error.message || 'Failed to load activities';
+			const [activitiesRes, name] = await Promise.all([
+				fluxbase
+					.from<Record<string, any>>('fitness_activities')
+					.select('*')
+					.order('started_at', { ascending: false })
+					.range(0, 199),
+				currentUsername()
+			]);
+			if (activitiesRes.error) {
+				console.error('Failed to load fitness activities:', activitiesRes.error);
+				loadError = activitiesRes.error.message || 'Failed to load activities';
 			} else {
-				activities = (data ?? []) as unknown as FitnessActivity[];
+				activities = (activitiesRes.data ?? []) as unknown as FitnessActivity[];
 			}
+			username = name;
 		} catch (err) {
 			console.error('Failed to load fitness activities:', err);
 			loadError = err instanceof Error ? err.message : 'Failed to load activities';
@@ -40,6 +63,53 @@
 			loading = false;
 		}
 	});
+
+	// ---- Sharing ----
+	// Cycle Default → Private → Friends → Public; Default clears the override
+	// so the activity follows the global fitness_sharing.default preference.
+	const CYCLE: (FitnessAudience | null)[] = [null, 'private', 'friends', 'public'];
+
+	function effectiveVisibility(activity: FitnessActivity): FitnessAudience {
+		return activity.visibility ?? fitnessSharing().default;
+	}
+
+	async function cycleVisibility(e: MouseEvent, activity: FitnessActivity) {
+		e.preventDefault();
+		e.stopPropagation();
+		const next = CYCLE[(CYCLE.indexOf(activity.visibility ?? null) + 1) % CYCLE.length];
+		const previous = activity.visibility ?? null;
+		activity.visibility = next;
+		try {
+			await setActivityVisibility(activity.id, next);
+			toast.success(t('fitness.sharing.overrideChanged'));
+		} catch (err) {
+			activity.visibility = previous;
+			toast.error(err instanceof Error ? err.message : t('fitness.sharing.updateFailed'));
+		}
+	}
+
+	function visibilityLabel(v: FitnessAudience | null): string {
+		if (v === null)
+			return `${t('fitness.sharing.default')} (${t('fitness.sharing.' + fitnessSharing().default)})`;
+		return t('fitness.sharing.' + v);
+	}
+
+	async function copyShareLink(e: MouseEvent, activity: FitnessActivity) {
+		e.preventDefault();
+		e.stopPropagation();
+		if (!username) return;
+		const url = `${window.location.origin}/u/${username}/fitness/${activity.id}`;
+		try {
+			await navigator.clipboard.writeText(url);
+			toast.success(
+				effectiveVisibility(activity) === 'private'
+					? t('fitness.sharing.linkCopiedPrivate')
+					: t('fitness.sharing.linkCopied')
+			);
+		} catch {
+			toast.error(t('fitness.sharing.copyFailed'));
+		}
+	}
 
 	function formatStart(iso: string): string {
 		const d = new Date(iso);
@@ -134,7 +204,7 @@
 							<div class="h-1.5 w-full bg-gradient-to-r {theme.gradient}"></div>
 							<div class="p-5">
 								<div class="mb-3 flex items-center justify-between">
-									<div class="flex items-center gap-2">
+									<div class="flex min-w-0 items-center gap-2">
 										<span
 											class="{theme.text} flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br {theme.gradient} bg-clip-text"
 										>
@@ -151,9 +221,44 @@
 											</p>
 										</div>
 									</div>
-									<ChevronRight
-										class="text-muted-foreground group-hover:text-primary h-5 w-5 transition-colors"
-									/>
+									<div class="flex shrink-0 items-center gap-1">
+										<button
+											type="button"
+											class="text-muted-foreground hover:bg-muted flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium"
+											onclick={(e) => copyShareLink(e, activity)}
+											aria-label="Copy share link"
+											title="Copy share link"
+										>
+											<Share2 class="h-3.5 w-3.5" />
+										</button>
+										<button
+											type="button"
+											class="hover:bg-muted flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium {effectiveVisibility(
+												activity
+											) === 'public'
+												? 'text-emerald-600 dark:text-emerald-300'
+												: effectiveVisibility(activity) === 'friends'
+													? 'text-sky-600 dark:text-sky-300'
+													: 'text-muted-foreground'}"
+											onclick={(e) => cycleVisibility(e, activity)}
+											aria-label={`Sharing: ${visibilityLabel(activity.visibility ?? null)} — click to change`}
+											title={`Sharing: ${visibilityLabel(activity.visibility ?? null)} — click to change`}
+										>
+											{#if activity.visibility === null}
+												<Activity class="h-3.5 w-3.5" />
+											{:else if effectiveVisibility(activity) === 'private'}
+												<Lock class="h-3.5 w-3.5" />
+											{:else if effectiveVisibility(activity) === 'friends'}
+												<Users class="h-3.5 w-3.5" />
+											{:else}
+												<Globe class="h-3.5 w-3.5" />
+											{/if}
+											<span>{visibilityLabel(activity.visibility ?? null)}</span>
+										</button>
+										<ChevronRight
+											class="text-muted-foreground group-hover:text-primary h-5 w-5 transition-colors"
+										/>
+									</div>
 								</div>
 
 								<div class="mb-3 flex items-baseline gap-3">

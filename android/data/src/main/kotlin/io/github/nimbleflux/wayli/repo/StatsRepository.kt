@@ -30,6 +30,7 @@ data class TrackPoint(val location: kotlinx.serialization.json.JsonElement? = nu
 class StatsRepository @Inject constructor(
     private val client: FluxbaseClient,
     private val cache: CacheStore,
+    private val arbiter: io.github.nimbleflux.wayli.session.SessionArbiter,
 ) {
 
     /**
@@ -203,7 +204,7 @@ class StatsRepository @Inject constructor(
         userId: String,
         days: Int = 371,
     ): Result<List<DailyActivity>> =
-        withRpcAuthRetry(client) {
+        withRpcAuthRetry(client, arbiter) {
         cache.withCacheList("calendar:$userId", DailyActivity.serializer()) {
             runCatching {
                 val res = client.rpc.invoke(
