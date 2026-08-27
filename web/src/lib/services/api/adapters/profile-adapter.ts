@@ -19,14 +19,6 @@ import { BaseAdapter, type BaseAdapterConfig } from './base-adapter';
  */
 export class ProfileAdapter extends BaseAdapter {
 	/**
-	 * Creates a new ProfileAdapter instance.
-	 * @param config - Configuration containing the authenticated session
-	 */
-	constructor(config: BaseAdapterConfig) {
-		super(config);
-	}
-
-	/**
 	 * Retrieves the current user's profile, combining data from
 	 * Fluxbase auth metadata and the user_profiles database table.
 	 *

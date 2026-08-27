@@ -42,14 +42,6 @@ export interface HomeAddress {
  */
 export class HomeAddressAdapter extends BaseAdapter {
 	/**
-	 * Creates a new HomeAddressAdapter instance.
-	 * @param config - Configuration containing the authenticated session
-	 */
-	constructor(config: BaseAdapterConfig) {
-		super(config);
-	}
-
-	/**
 	 * Retrieves the user's home address.
 	 *
 	 * @returns Promise resolving to object with home_address or null
