@@ -22,6 +22,7 @@ class SessionRefresherTest {
     private lateinit var client: FluxbaseClient
     private lateinit var demoManager: DemoManager
     private lateinit var refresher: SessionRefresher
+    private lateinit var arbiter: SessionArbiter
 
     private fun session(expiresAt: Long?) = AuthSession(
         user = User(id = "u1", email = "u@example.com"),
@@ -36,7 +37,8 @@ class SessionRefresherTest {
         client = mockk(relaxed = true)
         demoManager = mockk(relaxed = true)
         every { demoManager.isDemoMode } returns false
-        refresher = SessionRefresher(client, demoManager)
+        arbiter = SessionArbiter(client)
+        refresher = SessionRefresher(client, demoManager, arbiter)
         SessionExpiryBus.consume()
     }
 

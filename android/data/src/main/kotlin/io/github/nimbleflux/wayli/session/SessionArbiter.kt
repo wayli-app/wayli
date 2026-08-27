@@ -4,6 +4,7 @@ import android.util.Log
 import io.github.nimbleflux.fluxbase.FluxbaseClient
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -53,6 +54,9 @@ class SessionArbiter @Inject constructor(
             if (isSessionDeadError(error)) Verdict.DEAD else Verdict.TRANSIENT
 
         private const val TAG = "WayliSession"
+
+        /** Re-check delay before a DEAD verdict destroys the session. */
+        private const val CONFIRM_DELAY_MS = 2_000L
     }
 
     /**
@@ -61,33 +65,54 @@ class SessionArbiter @Inject constructor(
      * inside `refreshSession`), so a cold start's burst of failed requests
      * triggers exactly one verification refresh.
      *
-     * Fires [SessionExpiryBus] on — and only on — a confirmed [Verdict.DEAD].
+     * Fires [SessionExpiryBus] on — and only on — a **double-confirmed**
+     * [Verdict.DEAD]: the server's refresh handler maps *every* internal
+     * error (including transient database hiccups) to HTTP 401, so one
+     * rejection is not proof. A DEAD verdict is re-checked once after
+     * [CONFIRM_DELAY_MS]; only a second rejection destroys the session. A
+     * recovery during confirmation returns [Verdict.RECOVERED] untouched.
      */
     suspend fun adjudicate(site: String, cause: Throwable? = null): Verdict = mutex.withLock {
-        val result = client.auth.refreshSession()
-        val verdict = when {
-            result.error == null -> Verdict.RECOVERED
-            else -> classify(result.error)
-        }
-        when (verdict) {
-            Verdict.DEAD -> {
+        val first = client.auth.refreshSession()
+        val verdict = refreshVerdict(first)
+
+        if (verdict == Verdict.DEAD) {
+            delay(CONFIRM_DELAY_MS)
+            val confirm = client.auth.refreshSession()
+            val confirmed = refreshVerdict(confirm)
+            if (confirmed != Verdict.DEAD) {
                 Log.w(
                     TAG,
-                    "session DEAD at $site (cause: ${describe(cause)}); refresh rejected: ${describe(result.error)}",
+                    "refresh rejected once at $site (cause: ${describe(cause)}) but recovered on " +
+                        "confirmation (${describe(confirm.error)}) — keeping the session",
                 )
-                SessionExpiryBus.fire()
+                return@withLock confirmed
             }
+            Log.w(
+                TAG,
+                "session DEAD at $site (cause: ${describe(cause)}); refresh rejected twice " +
+                    "(${describe(first.error)} / ${describe(confirm.error)}) — signing out",
+            )
+            SessionExpiryBus.fire()
+            return@withLock Verdict.DEAD
+        }
+
+        when (verdict) {
             Verdict.RECOVERED ->
                 Log.i(TAG, "session RECOVERED at $site (cause: ${describe(cause)}); token refreshed")
             Verdict.TRANSIENT ->
                 Log.w(
                     TAG,
                     "transient auth trouble at $site (cause: ${describe(cause)}); refresh error: " +
-                        "${describe(result.error)} — keeping the session, SDK will retry",
+                        "${describe(first.error)} — keeping the session, SDK will retry",
                 )
+            Verdict.DEAD -> Unit // handled above
         }
         verdict
     }
+
+    private fun refreshVerdict(result: io.github.nimbleflux.fluxbase.FluxbaseResponse<*>): Verdict =
+        result.error?.let { classify(it) } ?: Verdict.RECOVERED
 
     private fun describe(error: Throwable?): String =
         error?.let { "${it.javaClass.simpleName}(status=${statusOf(it)}): ${it.message?.take(120)}" } ?: "none"

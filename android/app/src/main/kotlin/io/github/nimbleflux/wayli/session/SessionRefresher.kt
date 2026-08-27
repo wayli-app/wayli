@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 class SessionRefresher @Inject constructor(
     private val client: FluxbaseClient,
     private val demoManager: DemoManager,
+    private val arbiter: SessionArbiter,
 ) {
     private var refreshInFlight = false
 
@@ -47,17 +48,19 @@ class SessionRefresher @Inject constructor(
             val result = client.auth.refreshSession()
             val error = result.error
             if (error == null) return true
-            return when (SessionArbiter.classify(error)) {
+            when (SessionArbiter.classify(error)) {
+                // Rejected once — delegate to the arbiter's double-confirm
+                // (the server maps ALL refresh failures to 401, including
+                // transient ones) before anything destroys the session.
                 SessionArbiter.Verdict.DEAD -> {
-                    Log.w(TAG, "periodic refresh rejected (dead session): ${error.message?.take(120)}")
-                    SessionExpiryBus.fire()
-                    false
+                    Log.w(TAG, "periodic refresh rejected (dead session?): ${error.message?.take(120)} — confirming")
+                    return arbiter.adjudicate("periodic-confirm") == SessionArbiter.Verdict.RECOVERED
                 }
                 SessionArbiter.Verdict.TRANSIENT -> {
                     Log.i(TAG, "periodic refresh failed transiently: ${error.message?.take(120)} — retrying next tick")
-                    false
+                    return false
                 }
-                SessionArbiter.Verdict.RECOVERED -> true
+                SessionArbiter.Verdict.RECOVERED -> return true
             }
         } finally {
             refreshInFlight = false

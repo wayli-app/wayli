@@ -87,6 +87,24 @@ class SessionArbiterTest {
     }
 
     @Test
+    fun `single 401 that recovers on confirmation is NOT dead`() = runTest {
+        // The server's refresh handler maps ALL internal errors (including
+        // transient DB hiccups) to 401 — one rejection must not sign out.
+        var calls = 0
+        coEvery { client.auth.refreshSession() } answers {
+            calls++
+            if (calls == 1) {
+                FluxbaseResponse.Error(FluxbaseError(status = 401, message = "Invalid or expired refresh token"))
+            } else {
+                FluxbaseResponse.Success(session)
+            }
+        }
+        assertEquals(SessionArbiter.Verdict.RECOVERED, arbiter.adjudicate("test"))
+        assertEquals(2, calls)
+        assertFalse(SessionExpiryBus.expired.value)
+    }
+
+    @Test
     fun `network-failed refresh is TRANSIENT and never fires the bus`() = runTest {
         coEvery { client.auth.refreshSession() } returns FluxbaseResponse.Error(FluxbaseError(message = "SocketTimeoutException: connect timed out"))
         assertEquals(SessionArbiter.Verdict.TRANSIENT, arbiter.adjudicate("test"))
