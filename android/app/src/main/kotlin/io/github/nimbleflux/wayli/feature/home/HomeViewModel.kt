@@ -76,6 +76,7 @@ class HomeViewModel @Inject constructor(
     private val statsRepo: StatsRepository,
     private val userRepo: UserRepository,
     private val notificationRepo: io.github.nimbleflux.wayli.repo.NotificationRepository,
+    private val sessionArbiter: io.github.nimbleflux.wayli.session.SessionArbiter,
     private val rangeStore: io.github.nimbleflux.wayli.feature.stats.StatsRangeStore,
     onlineMonitor: io.github.nimbleflux.wayli.util.OnlineMonitor,
 ) : ViewModel() {
@@ -218,22 +219,37 @@ class HomeViewModel @Inject constructor(
                 loadWindow()
             } else {
                 val error = results.trips.exceptionOrNull()
-                // A dead session (refresh failed server-side without emitting
-                // SIGNED_OUT) makes every call 401 forever while Room serves
-                // cached trips — a zombie "logged-out" dashboard. Clear the
-                // session instead: signOut emits SIGNED_OUT and WayliNavHost
-                // routes to the sign-in screen.
+                // A 401-shaped failure must be adjudicated before it is
+                // treated as fatal: it only proves one refresh attempt
+                // didn't yield a working token, which includes transient
+                // network failures. Only a refresh endpoint rejection
+                // (SessionArbiter's DEAD verdict) signs the user out.
                 if (io.github.nimbleflux.wayli.session.isSessionDeadError(error)) {
-                    // NEVER gate the UI on the sign-out network call — a
-                    // hanging POST here froze the dashboard on a blank
-                    // Loading screen. WayliNavHost performs the hardened
-                    // sign-out and routes to the sign-in screen via the bus.
-                    sessionDead = true
-                    io.github.nimbleflux.wayli.session.SessionExpiryBus.fire()
-                    _uiState.value = HomeUiState.Error("Session expired — please sign in again")
-                    return@launch
+                    when (sessionArbiter.adjudicate("home:trips", error)) {
+                        io.github.nimbleflux.wayli.session.SessionArbiter.Verdict.DEAD -> {
+                            // NEVER gate the UI on the sign-out network call —
+                            // a hanging POST here froze the dashboard on a
+                            // blank Loading screen. WayliNavHost performs the
+                            // hardened sign-out and routes to sign-in via the
+                            // bus (fired by the arbiter).
+                            sessionDead = true
+                            _uiState.value = HomeUiState.Error("Session expired — please sign in again")
+                            return@launch
+                        }
+                        io.github.nimbleflux.wayli.session.SessionArbiter.Verdict.RECOVERED -> {
+                            // The refresh just rotated the token — retry once
+                            // with the working session instead of surfacing
+                            // the stale 401.
+                            load(silent = keepContent)
+                            return@launch
+                        }
+                        // Transient (network/5xx): connectivity-style error,
+                        // NOT a dead session — the SDK background loop
+                        // recovers and auth events trigger a reload.
+                        io.github.nimbleflux.wayli.session.SessionArbiter.Verdict.TRANSIENT -> Unit
+                    }
                 }
-                _uiState.value = HomeUiState.Error(error?.message ?: "Failed to load")
+                _uiState.value = HomeUiState.Error(error?.message ?: "Couldn't load — check your connection")
             }
             } finally {
                 if (keepContent) _refreshing.value = false

@@ -9,6 +9,9 @@ plugins {
 }
 
 android {
+    // JVM unit tests touch android.util.Log (SessionArbiter) — no-op it.
+    testOptions { unitTests { isReturnDefaultValues = true } }
+
     namespace = "io.github.nimbleflux.wayli"
     compileSdk = 35
 

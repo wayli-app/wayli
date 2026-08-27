@@ -2,6 +2,7 @@ package io.github.nimbleflux.wayli.repo
 
 import io.github.nimbleflux.wayli.db.CacheDao
 import io.github.nimbleflux.wayli.db.CacheEntity
+import io.github.nimbleflux.wayli.session.SessionArbiter
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.serialization.KSerializer
@@ -16,6 +17,7 @@ import kotlinx.serialization.json.Json
 @Singleton
 class CacheStore @Inject constructor(
     private val dao: CacheDao,
+    private val arbiter: SessionArbiter,
 ) {
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -32,21 +34,28 @@ class CacheStore @Inject constructor(
 
     /**
      * Write-through + serve-stale around a [fetch]: cache the success value,
-     * and when the fetch fails answer with the cached copy if one exists.
+     * and when the fetch fails answer with the cached payload if one exists.
      *
-     * Exception: a 401 is a dead session, not a connectivity blip — serving
-     * the stale cache there would keep a logged-out dashboard rendering
-     * cached data indefinitely, so auth failures propagate to the caller AND
-     * fire [SessionExpiryBus] so the nav host routes to sign-in from any
-     * screen, not just Home.
+     * Exception: a 401-shaped failure is adjudicated by [SessionArbiter]
+     * before it is treated as fatal — a 401 only means "one refresh attempt
+     * didn't yield a working token", which includes transient network
+     * failures that must NOT sign the user out. A confirmed dead session
+     * (refresh endpoint rejected the token) propagates to the caller and
+     * routes to sign-in; a recovered one retries the fetch; anything
+     * transient falls back to the stale cache like a connectivity blip.
      */
     suspend fun <T> withCache(key: String, serializer: KSerializer<T>, fetch: suspend () -> Result<T>): Result<T> {
         val result = fetch()
         result.onSuccess { put(key, it, serializer) }
         if (result.isSuccess) return result
         if (isAuthFailure(result)) {
-            io.github.nimbleflux.wayli.session.SessionExpiryBus.fire()
-            return result
+            return when (arbiter.adjudicate("cache:$key", result.exceptionOrNull())) {
+                SessionArbiter.Verdict.RECOVERED ->
+                    fetch().also { retried -> retried.onSuccess { put(key, it, serializer) } }
+                SessionArbiter.Verdict.DEAD -> result
+                SessionArbiter.Verdict.TRANSIENT ->
+                    get(key, serializer)?.let { Result.success(it) } ?: result
+            }
         }
         return get(key, serializer)?.let { Result.success(it) } ?: result
     }

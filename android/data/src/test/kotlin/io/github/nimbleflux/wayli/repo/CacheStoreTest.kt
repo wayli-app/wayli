@@ -23,6 +23,7 @@ class CacheStoreTest {
 
     private lateinit var db: WayliDatabase
     private lateinit var cache: CacheStore
+    private val arbiter = io.mockk.mockk<io.github.nimbleflux.wayli.session.SessionArbiter>(relaxed = true)
 
     @BeforeTest
     fun setUp() {
@@ -30,7 +31,7 @@ class CacheStoreTest {
         db = Room.inMemoryDatabaseBuilder(context, WayliDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        cache = CacheStore(db.cacheDao())
+        cache = CacheStore(db.cacheDao(), arbiter)
     }
 
     @AfterTest

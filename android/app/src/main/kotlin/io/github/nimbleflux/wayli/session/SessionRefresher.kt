@@ -1,7 +1,7 @@
 package io.github.nimbleflux.wayli.session
 
+import android.util.Log
 import io.github.nimbleflux.fluxbase.FluxbaseClient
-import io.github.nimbleflux.fluxbase.getOrNull
 import io.github.nimbleflux.wayli.demo.DemoManager
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,10 +13,11 @@ import kotlinx.coroutines.delay
  * Belt-and-braces alongside the SDK's own `autoRefresh` scheduler (enabled in
  * [io.github.nimbleflux.wayli.di.FluxbaseModule]): both funnel into the SDK's
  * single-flight `refreshSession` mutex, so they can never issue concurrent
- * refresh calls. Without any proactive refresh the app would only refresh
- * reactively when a request 401s; refreshing while the app is alive keeps
- * sliding the server-side refresh window forward — open the app at least once
- * per window and you stay signed in indefinitely.
+ * refresh calls. This loop doubles as the authoritative periodic dead-session
+ * re-check: a refresh error is classified by the same rules as
+ * [SessionArbiter] — only a definitive rejection by the refresh endpoint
+ * (HTTP 401 / "invalid or expired refresh token") signs the user out;
+ * transport-level failures (no status) are retried on the next tick.
  */
 @Singleton
 class SessionRefresher @Inject constructor(
@@ -27,10 +28,10 @@ class SessionRefresher @Inject constructor(
 
     /**
      * Refresh when the access token expires within [REFRESH_AHEAD_MS] (or has
-     * no known expiry). Returns true when a refresh was attempted and the
-     * session is alive afterwards. A dead refresh token fires
-     * [SessionExpiryBus] so the nav host routes to sign-in; network errors are
-     * left for the next tick (the reactive 401-retry still covers requests).
+     * no known expiry). Returns true when no refresh was needed or it
+     * succeeded. A confirmed-dead refresh token fires [SessionExpiryBus];
+     * transient failures are left for the next tick (the SDK's reactive
+     * 401-retry and autoRefresh still cover requests meanwhile).
      */
     suspend fun refreshIfDue(nowMs: Long = System.currentTimeMillis()): Boolean {
         if (demoManager.isDemoMode || refreshInFlight) return true
@@ -40,13 +41,24 @@ class SessionRefresher @Inject constructor(
 
         refreshInFlight = true
         try {
-            val refreshed = runCatching { client.auth.refreshSession().getOrNull() }
-            val error = refreshed.exceptionOrNull()
-            if (error != null) {
-                if (isSessionDeadError(error)) SessionExpiryBus.fire()
-                return false
+            // refreshSession() RETURNS errors (it never throws), so inspect
+            // the response — the previous runCatching/exceptionOrNull() here
+            // could never observe a failure.
+            val result = client.auth.refreshSession()
+            val error = result.error
+            if (error == null) return true
+            return when (SessionArbiter.classify(error)) {
+                SessionArbiter.Verdict.DEAD -> {
+                    Log.w(TAG, "periodic refresh rejected (dead session): ${error.message?.take(120)}")
+                    SessionExpiryBus.fire()
+                    false
+                }
+                SessionArbiter.Verdict.TRANSIENT -> {
+                    Log.i(TAG, "periodic refresh failed transiently: ${error.message?.take(120)} — retrying next tick")
+                    false
+                }
+                SessionArbiter.Verdict.RECOVERED -> true
             }
-            return refreshed.getOrNull() != null
         } finally {
             refreshInFlight = false
         }
@@ -61,6 +73,7 @@ class SessionRefresher @Inject constructor(
     }
 
     private companion object {
+        const val TAG = "WayliSession"
         /** Refresh this far before actual expiry (access tokens live ~1h). */
         const val REFRESH_AHEAD_MS = 5 * 60 * 1000L
         const val CHECK_INTERVAL_MS = 5 * 60 * 1000L

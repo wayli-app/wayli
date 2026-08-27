@@ -18,6 +18,7 @@ import javax.inject.Singleton
 class TripRepository @Inject constructor(
     private val client: FluxbaseClient,
     private val cache: CacheStore,
+    private val arbiter: io.github.nimbleflux.wayli.session.SessionArbiter,
 ) {
 
     /**
@@ -342,7 +343,7 @@ class TripRepository @Inject constructor(
     }
 
     /** Approve a suggestion — server flips to completed and computes distance. */
-    suspend fun approveSuggestion(tripId: String): Result<Unit> = withRpcAuthRetry(client) { runCatching {
+    suspend fun approveSuggestion(tripId: String): Result<Unit> = withRpcAuthRetry(client, arbiter) { runCatching {
         val res = client.rpc.invoke(
             "approve-detected-trip",
             mapOf("id" to tripId),
@@ -353,7 +354,7 @@ class TripRepository @Inject constructor(
     } }
 
     /** Dismiss a suggestion (status → rejected). */
-    suspend fun rejectSuggestion(tripId: String): Result<Unit> = withRpcAuthRetry(client) { runCatching {
+    suspend fun rejectSuggestion(tripId: String): Result<Unit> = withRpcAuthRetry(client, arbiter) { runCatching {
         val res = client.rpc.invoke(
             "reject-detected-trip",
             mapOf("id" to tripId),
