@@ -46,14 +46,6 @@ export interface TripExclusion {
  */
 export class TripExclusionsAdapter extends BaseAdapter {
 	/**
-	 * Creates a new TripExclusionsAdapter instance.
-	 * @param config - Configuration containing the authenticated session
-	 */
-	constructor(config: BaseAdapterConfig) {
-		super(config);
-	}
-
-	/**
 	 * Retrieves all trip exclusions for the authenticated user.
 	 *
 	 * @returns Promise resolving to object with exclusions array
