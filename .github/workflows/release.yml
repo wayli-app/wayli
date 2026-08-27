@@ -587,8 +587,25 @@ jobs:
       # (settings.gradle.kts reads GITHUB_ACTOR/GITHUB_TOKEN).
       - name: Resolve version
         id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "versionCode=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+          # Play requires unique version codes; the date-only scheme
+          # (yyyyMMdd) allowed exactly one release per day and collided the
+          # moment two shipped on the same day (rc.26 and rc.27 both became
+          # 20260827). Append a per-day release counter taken from today's
+          # GitHub releases: 2026082701, 2026082702… — 10 digits, still
+          # below Play's 2_100_000_000 ceiling until ~2073. The current
+          # release already exists (the `release` job runs first), so the
+          # count includes it; re-running this job for the same tag yields
+          # the same code, and a later same-day release gets the next slot.
+          TODAY=$(date -u +%F)
+          COUNT=$(gh api 'repos/{owner}/{repo}/releases?per_page=100' --paginate \
+            --jq ".[] | select(.created_at | startswith(\"$TODAY\")) | .name" 2>/dev/null | wc -l)
+          if [ -z "$COUNT" ] || [ "$COUNT" -lt 1 ]; then COUNT=1; fi
+          VERSION_CODE="$(date -u +%Y%m%d)$(printf '%02d' "$COUNT")"
+          echo "versionCode=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "Version code: $VERSION_CODE (release #$COUNT today)"
 
       - name: Decode signing keystore
         id: keystore
