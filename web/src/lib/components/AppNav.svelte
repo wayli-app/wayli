@@ -254,9 +254,7 @@
 						<a
 							href={item.href}
 							class="flex min-h-[44px] cursor-pointer items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors {$page
-								.url.pathname === item.href ||
-							(item.href === '/dashboard/travel' &&
-								$page.url.pathname.startsWith('/dashboard/travel'))
+								.url.pathname === item.href || $page.url.pathname.startsWith(item.href + '/')
 								? 'bg-primary text-primary-foreground'
 								: 'text-muted-foreground hover:bg-muted'}"
 							onclick={handleCloseSidebar}
