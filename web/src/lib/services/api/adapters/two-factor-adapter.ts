@@ -58,14 +58,6 @@ export interface TwoFactorVerifyRequest {
  */
 export class TwoFactorAdapter extends BaseAdapter {
 	/**
-	 * Creates a new TwoFactorAdapter instance.
-	 * @param config - Configuration containing the authenticated session
-	 */
-	constructor(config: BaseAdapterConfig) {
-		super(config);
-	}
-
-	/**
 	 * Initiates 2FA setup by generating a TOTP secret and QR code.
 	 * The QR code is customized with "Wayli" as the issuer name.
 	 *

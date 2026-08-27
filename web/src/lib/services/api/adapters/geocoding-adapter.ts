@@ -59,14 +59,6 @@ export interface GeocodingResult {
  */
 export class GeocodingAdapter extends BaseAdapter {
 	/**
-	 * Creates a new GeocodingAdapter instance.
-	 * @param config - Configuration containing the authenticated session
-	 */
-	constructor(config: BaseAdapterConfig) {
-		super(config);
-	}
-
-	/**
 	 * Searches for locations matching the given query.
 	 * Uses Pelias autocomplete API for fast, as-you-type results.
 	 *
