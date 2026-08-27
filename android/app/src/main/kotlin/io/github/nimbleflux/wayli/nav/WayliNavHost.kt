@@ -7,10 +7,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
@@ -34,6 +38,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import androidx.navigation.NavType
@@ -84,9 +89,11 @@ object Routes {
     const val TRAVEL = "travel"
     const val WISHLIST = "wishlist"
     const val SETTINGS = "settings"
+    const val FITNESS = "fitness" // Beta-gated 5th tab
 
     // Pushed screens
     const val TRIP_DETAIL = "trip_detail/{tripId}"
+    const val FITNESS_DETAIL = "fitness_detail/{activityId}"
     const val FULL_MAP = "full_map?tripId={tripId}"
     const val ENTRY_EDITOR = "entry_editor/{tripId}?entryId={entryId}&draftId={draftId}"
     const val ENTRY_DETAIL = "entry_detail/{tripId}/{entryId}"
@@ -114,6 +121,43 @@ private val tabs = listOf(
     WayliTab(Routes.SETTINGS, "Settings", Icons.Filled.Settings),
 )
 
+/** The beta-gated 5th dock tab — slotted in before Settings when enabled. */
+private val fitnessTab = WayliTab(Routes.FITNESS, "Fitness", Icons.Filled.DirectionsRun)
+
+private val tabRoutes = setOf(Routes.MAP, Routes.TRAVEL, Routes.WISHLIST, Routes.FITNESS, Routes.SETTINGS)
+
+/**
+ * The dock tab that owns [route], so the tab stays highlighted while the user
+ * is inside a pushed screen of that section (e.g. Travel on a trip page).
+ * Tab routes map to themselves; null means "no tab active".
+ */
+private fun parentTabOf(route: String?): String? = when {
+    route == null -> null
+    route.startsWith("trip_detail") ||
+        route.startsWith("entry_detail") ||
+        route.startsWith("entry_editor") ||
+        route == Routes.SUGGESTIONS -> Routes.TRAVEL
+    route.startsWith("fitness_detail") -> Routes.FITNESS
+    route.startsWith("full_map") ||
+        route == Routes.STATS ||
+        route == Routes.NOTIFICATIONS -> Routes.MAP
+    route in setOf(
+        Routes.PROFILE,
+        Routes.SECURITY,
+        Routes.TRACKING_SETTINGS,
+        Routes.CONNECTIONS,
+        Routes.DATA_SAMPLING,
+        Routes.TRIP_EXCLUSIONS,
+        Routes.IMPORT_EXPORT,
+        Routes.ADMIN_USERS,
+        Routes.ADMIN_MAINTENANCE,
+        Routes.JOBS,
+        Routes.PREFERENCES,
+        Routes.TWO_FACTOR_SETUP,
+    ) -> Routes.SETTINGS
+    else -> route.takeIf { it in tabRoutes }
+}
+
 @HiltViewModel
 class NavViewModel @Inject constructor(
     private val instanceManager: InstanceManager,
@@ -124,11 +168,35 @@ class NavViewModel @Inject constructor(
     private val deviceTokenRepo: io.github.nimbleflux.wayli.repo.DeviceTokenRepository,
     private val tripRepo: io.github.nimbleflux.wayli.repo.TripRepository,
     private val draftRepo: io.github.nimbleflux.wayli.repo.DraftRepository,
+    private val preferencesRepository: io.github.nimbleflux.wayli.repo.PreferencesRepository,
     val sessionRefresher: io.github.nimbleflux.wayli.session.SessionRefresher,
 ) : ViewModel() {
 
     /** Trips offered by the share-target inbox ("save to trip…"). */
     val inboxTrips = MutableStateFlow<List<io.github.nimbleflux.wayli.models.Trip>>(emptyList())
+
+    /**
+     * Fitness beta opt-in (`user_preferences.preferences.beta_features.fitness`
+     * — the same flag the web reads). Gates the Fitness dock tab. Refreshed on
+     * construction, on sign-in, and when Preferences reports a save.
+     */
+    private val _fitnessBeta = MutableStateFlow(false)
+    val fitnessBeta: kotlinx.coroutines.flow.StateFlow<Boolean> = _fitnessBeta.asStateFlow()
+
+    fun refreshFitnessBeta() {
+        if (demoManager.isDemoMode) {
+            _fitnessBeta.value = false
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val userId = fluxbaseClient.auth.currentSession?.user?.id ?: return@launch
+            _fitnessBeta.value = preferencesRepository.getPreferences(userId)
+                .getOrNull()
+                ?.let { preferencesRepository.fitnessBetaOf(it) } == true
+        }
+    }
+
+    init { refreshFitnessBeta() }
 
     fun loadInboxTrips() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -244,7 +312,16 @@ fun WayliNavHost() {
     val viewModel: NavViewModel = hiltViewModel()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val isTabRoute = currentRoute in tabs.map { it.route }
+    // Dock tab that owns the current screen (stays highlighted on pushed
+    // screens of a section, e.g. Travel while a trip page is open).
+    val activeTab = parentTabOf(currentRoute)
+    // Beta-gated Fitness tab — hidden in demo mode (no server, no activities).
+    val fitnessBeta by viewModel.fitnessBeta.collectAsState()
+    val visibleTabs = if (fitnessBeta && !viewModel.isDemoMode) {
+        listOf(tabs[0], tabs[1], tabs[2], fitnessTab, tabs[3])
+    } else {
+        tabs
+    }
     // Auth/setup screens show no dock (logged-out users must not see the main
     // menu) — also drops the NavHost's dock-clearing bottom padding there.
     val isAuthRoute = currentRoute in setOf(
@@ -259,10 +336,10 @@ fun WayliNavHost() {
     // navigates; the launchSingleTop guard makes the duplicate event a no-op.
     // SIGNED_IN re-routes without a process restart after the OAuth deep-link
     // exchange, so returning from the browser lands on Home immediately.
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+        androidx.compose.runtime.LaunchedEffect(Unit) {
         viewModel.authEvents.collect { state ->
             val route = navController.currentBackStackEntry?.destination?.route
-            val onTabs = route in tabs.map { it.route }
+            val onTabs = route in tabRoutes
             if (state.event == io.github.nimbleflux.fluxbase.auth.AuthChangeEvent.SIGNED_OUT && onTabs) {
                 navController.navigate(Routes.SIGN_IN) {
                     popUpTo(Routes.MAP) { inclusive = true }
@@ -271,6 +348,7 @@ fun WayliNavHost() {
             }
             if (state.event == io.github.nimbleflux.fluxbase.auth.AuthChangeEvent.SIGNED_IN) {
                 viewModel.ensureTrackingToken()
+                viewModel.refreshFitnessBeta()
                 if (route == Routes.SIGN_IN) {
                     navController.navigate(Routes.MAP) {
                         popUpTo(Routes.SIGN_IN) { inclusive = true }
@@ -307,12 +385,17 @@ fun WayliNavHost() {
         }
     }
 
-    // Switching to a tab restores its saved state and pops back to Home.
+    // Switching tabs: when the tab's root is already on the back stack (the
+    // user is inside that section), pop back to it — re-tapping Travel from a
+    // trip page returns to the travel overview. Otherwise switch tabs and land
+    // on the tab's root screen (no saved-state restore, so a tab never reopens
+    // a pushed detail screen).
     val switchTab: (String) -> Unit = { route ->
-        navController.navigate(route) {
-            popUpTo(Routes.MAP) { saveState = true }
-            launchSingleTop = true
-            restoreState = true
+        if (!navController.popBackStack(route, inclusive = false)) {
+            navController.navigate(route) {
+                popUpTo(Routes.MAP)
+                launchSingleTop = true
+            }
         }
     }
 
@@ -350,8 +433,16 @@ fun WayliNavHost() {
             startDestination = viewModel.startRoute,
             modifier = Modifier
                 .fillMaxSize()
-                // clear the persistent floating dock (absent on auth screens)
-                .padding(bottom = if (isAuthRoute) 0.dp else 86.dp),
+                // clear the persistent floating dock (absent on auth screens):
+                // dock surface + float margin (~96dp) plus the navigation-bar
+                // inset the dock also occupies.
+                .padding(
+                    bottom = if (isAuthRoute) {
+                        0.dp
+                    } else {
+                        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp
+                    },
+                ),
 
             enterTransition = { fadeIn(animationSpec = tween(220)) },
             exitTransition = { fadeOut(animationSpec = tween(160)) },
@@ -443,6 +534,14 @@ fun WayliNavHost() {
                     },
                 )
             }
+            composable(Routes.FITNESS) {
+                io.github.nimbleflux.wayli.feature.fitness.FitnessListScreen(
+                    onActivityClick = { activity ->
+                        navController.navigate("fitness_detail/${activity.id}")
+                    },
+                    onImport = { navController.navigate(Routes.IMPORT_EXPORT) },
+                )
+            }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
                     demoMode = viewModel.isDemoMode,
@@ -508,6 +607,22 @@ fun WayliNavHost() {
                         navController.navigate("entry_editor/${detailVm.tripId}")
                     },
                     viewModel = detailVm,
+                )
+            }
+            composable(
+                route = Routes.FITNESS_DETAIL,
+                arguments = listOf(navArgument("activityId") { type = NavType.StringType }),
+            ) { entry ->
+                io.github.nimbleflux.wayli.feature.fitness.FitnessDetailScreen(
+                    activityId = entry.arguments?.getString("activityId").orEmpty(),
+                    onBack = { navController.popBackStack() },
+                    onOpenNeighbour = { id ->
+                        // Replace the current detail with the neighbour's.
+                        navController.navigate("fitness_detail/$id") {
+                            popUpTo(Routes.FITNESS)
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
             composable(
@@ -583,7 +698,11 @@ fun WayliNavHost() {
                 )
             }
             composable(Routes.PREFERENCES) {
-                PreferencesScreen(onBack = { navController.popBackStack() })
+                PreferencesScreen(
+                    onBack = { navController.popBackStack() },
+                    // The fitness beta flag may have changed — refresh the dock tab.
+                    onSaved = { viewModel.refreshFitnessBeta() },
+                )
             }
             composable(Routes.CONNECTIONS) {
                 ConnectionsScreen(onBack = { navController.popBackStack() })
@@ -632,8 +751,8 @@ fun WayliNavHost() {
         ) {
             Box {
                 WayliBottomBar(
-                    tabs = tabs,
-                    currentRoute = currentRoute,
+                    tabs = visibleTabs,
+                    currentRoute = activeTab,
                     onTabSelected = switchTab,
                 )
             }

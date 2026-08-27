@@ -23,6 +23,10 @@ import kotlinx.serialization.json.jsonObject
 class PreferencesRepository @Inject constructor(
     private val client: FluxbaseClient,
 ) {
+    private companion object {
+        val FITNESS_AUDIENCES = setOf("private", "friends", "public")
+    }
+
     suspend fun getPreferences(userId: String): Result<UserPreferences> = runCatching {
         val result = client.from<UserPreferences>("user_preferences")
             .select()
@@ -55,6 +59,71 @@ class PreferencesRepository @Inject constructor(
     /** Extract the `units` value ("metric"|"imperial") from the preferences JSONB. */
     fun unitsOf(prefs: UserPreferences): String? =
         prefs.preferences?.jsonObject?.get("units")?.let { (it as? JsonPrimitive)?.content }
+
+    /**
+     * Fitness beta opt-in, stored at `preferences.beta_features.fitness` —
+     * the same flag the web reads. Gates the Fitness tab and FIT import UI.
+     */
+    fun fitnessBetaOf(prefs: UserPreferences): Boolean =
+        (prefs.preferences?.jsonObject?.get("beta_features") as? JsonObject)
+            ?.get("fitness") == JsonPrimitive(true)
+
+    suspend fun setFitnessBeta(userId: String, enabled: Boolean): Result<Unit> = runCatching {
+        val current = getPreferences(userId).getOrNull()
+        val merged = JsonObject(
+            (current?.preferences?.jsonObject ?: emptyMap()).toMutableMap().apply {
+                put(
+                    "beta_features",
+                    JsonObject(
+                        ((this["beta_features"] as? JsonObject)?.toMutableMap() ?: mutableMapOf())
+                            .apply { put("fitness", JsonPrimitive(enabled)) },
+                    ),
+                )
+            },
+        )
+        if (current?.userId != null) {
+            client.from<UserPreferences>("user_preferences")
+                .eq("user_id", userId)
+                .update(mapOf("preferences" to merged))
+        } else {
+            // No preferences row yet — an UPDATE alone would affect 0 rows and
+            // silently lose the toggle (the web inserts for the same reason).
+            client.from<UserPreferences>("user_preferences")
+                .insert(mapOf("user_id" to userId, "preferences" to merged))
+        }
+        Unit
+    }
+
+    /**
+     * Global default sharing audience for fitness activities, stored at
+     * `preferences.fitness_sharing.default` (same setting the web edits).
+     * Private when unset/invalid.
+     */
+    fun fitnessDefaultOf(prefs: UserPreferences): String =
+        (prefs.preferences?.jsonObject?.get("fitness_sharing") as? JsonObject)
+            ?.get("default")?.let { (it as? JsonPrimitive)?.content }
+            ?.takeIf { it in FITNESS_AUDIENCES } ?: "private"
+
+    suspend fun setFitnessDefault(userId: String, audience: String): Result<Unit> = runCatching {
+        val current = getPreferences(userId).getOrNull()
+        val sharing = (current?.preferences?.jsonObject?.get("fitness_sharing") as? JsonObject)
+            ?.toMutableMap() ?: mutableMapOf()
+        sharing["default"] = JsonPrimitive(audience)
+        val merged = JsonObject(
+            (current?.preferences?.jsonObject ?: emptyMap()).toMutableMap().apply {
+                put("fitness_sharing", JsonObject(sharing))
+            },
+        )
+        if (current?.userId != null) {
+            client.from<UserPreferences>("user_preferences")
+                .eq("user_id", userId)
+                .update(mapOf("preferences" to merged))
+        } else {
+            client.from<UserPreferences>("user_preferences")
+                .insert(mapOf("user_id" to userId, "preferences" to merged))
+        }
+        Unit
+    }
 
     // ---- Trip exclusions (the `trip_exclusions` JSONB array on the same row) ----
 

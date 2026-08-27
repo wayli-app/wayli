@@ -10,12 +10,13 @@ import kotlinx.coroutines.delay
 /**
  * Keeps the user signed in by refreshing the access token BEFORE it expires.
  *
- * The Kotlin SDK has no proactive refresh (its `autoRefresh` flag is unused —
- * unlike the TS SDK), so without this the app only refreshes reactively when a
- * request 401s. If the app then sits unused past the refresh-token window
- * (default 7 days server-side), the session dies and the user is logged out.
- * Refreshing while the app is alive keeps sliding that window forward — open
- * the app at least once per window and you stay signed in indefinitely.
+ * Belt-and-braces alongside the SDK's own `autoRefresh` scheduler (enabled in
+ * [io.github.nimbleflux.wayli.di.FluxbaseModule]): both funnel into the SDK's
+ * single-flight `refreshSession` mutex, so they can never issue concurrent
+ * refresh calls. Without any proactive refresh the app would only refresh
+ * reactively when a request 401s; refreshing while the app is alive keeps
+ * sliding the server-side refresh window forward — open the app at least once
+ * per window and you stay signed in indefinitely.
  */
 @Singleton
 class SessionRefresher @Inject constructor(

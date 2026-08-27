@@ -51,15 +51,24 @@ import io.github.nimbleflux.wayli.demo.DemoManager
 import io.github.nimbleflux.wayli.models.UserPreferences
 import io.github.nimbleflux.wayli.repo.PreferencesRepository
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 sealed interface PreferencesUiState {
     data object Loading : PreferencesUiState
     data class Error(val message: String) : PreferencesUiState
-    data class Success(val prefs: UserPreferences, val units: String, val language: String?) : PreferencesUiState
+    data class Success(
+        val prefs: UserPreferences,
+        val units: String,
+        val language: String?,
+        val fitnessBeta: Boolean = false,
+        val fitnessDefault: String = "private",
+    ) : PreferencesUiState
 }
 
 @HiltViewModel
@@ -68,7 +77,7 @@ class PreferencesViewModel @Inject constructor(
     private val fluxbaseClient: FluxbaseClient,
     private val prefsRepo: PreferencesRepository,
 ) : ViewModel() {
-    val isDemoMode: Boolean = demoManager.isDemoMode
+    val isDemoMode: Boolean get() = demoManager.isDemoMode
 
     private val _state = MutableStateFlow<PreferencesUiState>(PreferencesUiState.Loading)
     val state: StateFlow<PreferencesUiState> = _state.asStateFlow()
@@ -76,6 +85,10 @@ class PreferencesViewModel @Inject constructor(
     val saving: StateFlow<Boolean> = _saving.asStateFlow()
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    /** Emitted after any successful persist — e.g. the nav host refreshes the Fitness tab flag. */
+    private val _saved = MutableSharedFlow<Unit>()
+    val saved: SharedFlow<Unit> = _saved.asSharedFlow()
 
     init {
         if (demoManager.isDemoMode) {
@@ -92,7 +105,15 @@ class PreferencesViewModel @Inject constructor(
         }
         viewModelScope.launch {
             prefsRepo.getPreferences(uid)
-                .onSuccess { _state.value = PreferencesUiState.Success(it, prefsRepo.unitsOf(it) ?: "metric", it.language) }
+                .onSuccess {
+                    _state.value = PreferencesUiState.Success(
+                        it,
+                        prefsRepo.unitsOf(it) ?: "metric",
+                        it.language,
+                        prefsRepo.fitnessBetaOf(it),
+                        prefsRepo.fitnessDefaultOf(it),
+                    )
+                }
                 .onFailure { _state.value = PreferencesUiState.Error(it.message ?: "Failed to load preferences") }
         }
     }
@@ -109,6 +130,39 @@ class PreferencesViewModel @Inject constructor(
         }
     }
 
+    /** Fitness beta opt-in — persisted immediately (same flag the web toggles). */
+    fun setFitnessBeta(enabled: Boolean) {
+        if (demoManager.isDemoMode) return
+        val uid = fluxbaseClient.auth?.currentSession?.user?.id ?: return
+        viewModelScope.launch {
+            prefsRepo.setFitnessBeta(uid, enabled)
+                .onSuccess {
+                    (_state.value as? PreferencesUiState.Success)?.let {
+                        _state.value = it.copy(fitnessBeta = enabled)
+                    }
+                    _message.value = if (enabled) "Fitness beta enabled" else "Fitness beta disabled"
+                    _saved.emit(Unit)
+                }
+                .onFailure { _message.value = it.message ?: "Failed to save" }
+        }
+    }
+
+    /** Default sharing audience for fitness activities (same setting the web edits). */
+    fun setFitnessDefault(audience: String) {
+        if (demoManager.isDemoMode) return
+        val uid = fluxbaseClient.auth?.currentSession?.user?.id ?: return
+        viewModelScope.launch {
+            prefsRepo.setFitnessDefault(uid, audience)
+                .onSuccess {
+                    (_state.value as? PreferencesUiState.Success)?.let {
+                        _state.value = it.copy(fitnessDefault = audience)
+                    }
+                    _message.value = "Default activity sharing: $audience"
+                }
+                .onFailure { _message.value = it.message ?: "Failed to save" }
+        }
+    }
+
     fun clearMessage() {
         _message.value = null
     }
@@ -116,8 +170,11 @@ class PreferencesViewModel @Inject constructor(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PreferencesScreen(onBack: () -> Unit) {
-    val viewModel: PreferencesViewModel = hiltViewModel()
+fun PreferencesScreen(
+    onBack: () -> Unit,
+    onSaved: () -> Unit = {},
+    viewModel: PreferencesViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsState()
     val saving by viewModel.saving.collectAsState()
     val message by viewModel.message.collectAsState()
@@ -125,6 +182,12 @@ fun PreferencesScreen(onBack: () -> Unit) {
 
     LaunchedEffect(message) {
         message?.let { snackbarHost.showSnackbar(it); viewModel.clearMessage() }
+    }
+
+    // A persist happened (e.g. the fitness beta toggled) — notify the host so
+    // gated UI like the Fitness dock tab refreshes immediately.
+    LaunchedEffect(Unit) {
+        viewModel.saved.collect { onSaved() }
     }
 
     val timezones = remember {
@@ -172,6 +235,45 @@ fun PreferencesScreen(onBack: () -> Unit) {
                             Text("In-app activity notifications", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Switch(checked = notifications, onCheckedChange = { notifications = it }, enabled = !viewModel.isDemoMode)
+                    }
+                    // Fitness beta — persisted immediately, not via the Save button
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Fitness (beta)", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+                            Text(
+                                "Import and analyze .fit activities from your sports watch",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = s.fitnessBeta,
+                            onCheckedChange = { viewModel.setFitnessBeta(it) },
+                            enabled = !viewModel.isDemoMode,
+                        )
+                    }
+                    // Default sharing audience for activities — same setting as
+                    // the web's account settings; per-activity overrides live
+                    // on the activity itself.
+                    if (s.fitnessBeta) {
+                        Column {
+                            Text("Default activity sharing", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+                            Text(
+                                "Audience for activities without their own sharing setting",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                listOf("private" to "Private", "friends" to "Friends", "public" to "Public").forEachIndexed { i, (value, label) ->
+                                    SegmentedButton(
+                                        selected = s.fitnessDefault == value,
+                                        onClick = { viewModel.setFitnessDefault(value) },
+                                        shape = SegmentedButtonDefaults.itemShape(i, 3),
+                                    ) { Text(label) }
+                                }
+                            }
+                        }
                     }
                     // Timezone
                     Column {

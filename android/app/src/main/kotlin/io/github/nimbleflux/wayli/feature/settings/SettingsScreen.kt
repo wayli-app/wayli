@@ -257,6 +257,9 @@ fun SettingsScreen(
             ) {
                 Text(if (demoMode) "Exit demo" else "Sign out")
             }
+            // Keep the sign-out button clear of the floating dock when fully
+            // scrolled (spacedBy only applies between children).
+            Spacer(Modifier.height(16.dp))
 
             if (showChangeServer) {
                 AlertDialog(
