@@ -528,6 +528,12 @@
 		"exclusionZones": "Zonas de exclusão",
 		"heatmap": "Mapa de calor",
 		"heatmapToggle": "Mostrar onde você passa o tempo",
+		"roadMatch": "Ajustar às estradas",
+		"roadMatching": "Ajustando…",
+		"roadMatchToggle": "Ajustar o trajeto visível às estradas via Valhalla",
+		"roadMatchDisabledTitle": "Recurso beta: ative 'Rotas ajustadas às estradas' nas Configurações da conta",
+		"roadMatchPartial": "Sem correspondência viária confiável para esta vista — as seções sem correspondência permanecem brutas",
+		"roadMatchFailed": "Falha ao ajustar às estradas",
 		"segmentSelected": "Segmento selecionado ({count} pontos)",
 		"segmentSingular": "segmento",
 		"segmentPlural": "segmentos",
@@ -1071,7 +1077,9 @@
 		"betaFeaturesTitle": "Funções beta",
 		"betaFeaturesDescription": "Ativa funcionalidades experimentais. Podem mudar ou ser removidas a qualquer momento.",
 		"fitnessBetaName": "Fitness",
-		"fitnessBetaDescription": "Importa ficheiros de treino .fit e analisa as tuas sessões (frequência cardíaca, potência, cadência)."
+		"fitnessBetaDescription": "Importa ficheiros de treino .fit e analisa as tuas sessões (frequência cardíaca, potência, cadência).",
+		"valhallaRoutesBetaName": "Rotas ajustadas às estradas",
+		"valhallaRoutesBetaDescription": "Ajuste suas trilhas às estradas através do servidor de roteamento (Valhalla): rotas de viagem mais suaves e uma visão 'Ajustar às estradas' na página de Dados de localização. Seus segmentos de movimento são enviados ao servidor de roteamento."
 	},
 	"serverAdmin": {
 		"title": "Configurações de administração do servidor",

@@ -528,6 +528,12 @@
 		"exclusionZones": "제외 구역",
 		"heatmap": "히트맵",
 		"heatmapToggle": "시간을 보낸 곳 표시",
+		"roadMatch": "도로에 맞추기",
+		"roadMatching": "맞추는 중…",
+		"roadMatchToggle": "Valhalla로 보이는 트랙을 도로에 맞추기",
+		"roadMatchDisabledTitle": "베타 기능 — 계정 설정에서 '도로 따라 가는 경로'를 활성화하세요",
+		"roadMatchPartial": "이 보기에는 확실한 도로 일치가 없습니다. 일치하지 않은 구간은 원본으로 표시됩니다",
+		"roadMatchFailed": "도로 맞추기 실패",
 		"segmentSelected": "구간 선택됨 ({count}개 지점)",
 		"segmentSingular": "구간",
 		"segmentPlural": "구간",
@@ -1075,7 +1081,9 @@
 		"betaFeaturesTitle": "베타 기능",
 		"betaFeaturesDescription": "실험적 기능을 활성화합니다. 언제든 변경되거나 제거될 수 있습니다.",
 		"fitnessBetaName": "피트니스",
-		"fitnessBetaDescription": ".fit 운동 파일을 가져와 세션(심박수, 파워, 케이던스)을 분석합니다."
+		"fitnessBetaDescription": ".fit 운동 파일을 가져와 세션(심박수, 파워, 케이던스)을 분석합니다.",
+		"valhallaRoutesBetaName": "도로 따라 가는 경로",
+		"valhallaRoutesBetaDescription": "라우팅 서버(Valhalla)를 통해 트랙을 도로에 맞춥니다. 더 부드러운 여행 경로와 위치 데이터 페이지의 '도로에 맞추기' 보기. 이동 구간은 라우팅 서버로 전송됩니다."
 	},
 	"serverAdmin": {
 		"title": "서버 관리자 설정",

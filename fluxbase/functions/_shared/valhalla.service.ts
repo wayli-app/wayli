@@ -1,7 +1,7 @@
-// /Users/bart/Dev/wayli/fluxbase/jobs/_shared/services/external/valhalla.service.ts
-// Mirrored for the functions tree at
-// functions/_shared/services/external/valhalla.service.ts (functions cannot
-// import from ../jobs at runtime). Update both together.
+// fluxbase/functions/_shared/valhalla.service.ts (flat — the sync only registers top-level _shared files)
+// Mirrors jobs/_shared/services/external/valhalla.service.ts (web has a
+// test-only mirror too). Update ALL together. Copied here because functions
+// bundle from their own tree and cannot import from ../jobs at runtime.
 //
 // Client for the self-hosted Valhalla routing engine (https://valhalla.wayli.app).
 // Provides GPS trace map-matching via the /trace_attributes endpoint — Valhalla's

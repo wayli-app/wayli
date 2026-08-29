@@ -558,14 +558,19 @@
 						{/if}
 					</button>
 				{/each}
-				{#if stats.tripsWithJournal > 0}
+				{#if trips.length > 0}
+					{@const journalFilterDisabled = stats.tripsWithJournal === 0 && !journalOnly}
 					<div class="bg-border mx-1 h-4 w-px"></div>
 					<button
 						type="button"
 						onclick={() => (journalOnly = !journalOnly)}
+						disabled={journalFilterDisabled}
+						aria-pressed={journalOnly}
 						class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors {journalOnly
 							? 'border-primary bg-primary/10 text-primary'
-							: 'border-border text-muted-foreground hover:text-foreground'}"
+							: journalFilterDisabled
+								? 'border-border text-muted-foreground/50'
+								: 'border-border text-muted-foreground hover:text-foreground'}"
 					>
 						<BookOpen class="h-3.5 w-3.5" />
 						{journalOnly ? 'All trips' : `Trips with journal (${stats.tripsWithJournal})`}

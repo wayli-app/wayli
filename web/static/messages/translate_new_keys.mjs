@@ -14,17 +14,12 @@ const __dirname = dirname(__filename);
 
 // The new keys to translate (dot-notation paths)
 const NEW_KEYS = [
-  'onboarding.nextStepsTitle',
-  'onboarding.nextStepsSubtitle',
-  'onboarding.configureOwnTracks',
-  'onboarding.configureOwnTracksDesc',
-  'onboarding.importData',
-  'onboarding.importDataDesc',
-  'onboarding.generateTrips',
-  'onboarding.generateTripsDesc',
-  'onboarding.configureAI',
-  'onboarding.configureAIDesc',
-  'onboarding.getStarted',
+  'statistics.roadMatch',
+  'statistics.roadMatching',
+  'statistics.roadMatchToggle',
+  'statistics.roadMatchDisabledTitle',
+  'statistics.roadMatchPartial',
+  'statistics.roadMatchFailed',
 ];
 
 // Target languages (excluding 'en')

@@ -2794,9 +2794,16 @@ DECLARE
 BEGIN
     -- Gate access via can_see_gps(): owner, or gps_visible_to allows the
     -- caller (public trip, explicit share, or accepted friend connection).
+    -- Public trips (visibility = 'public') always serve their track: a trip
+    -- the owner chose to publish shouldn't render an empty map just because
+    -- gps_visible_to kept its default ('private') — the privacy-zone
+    -- clipping below already strips the owner's home address and trip
+    -- exclusions, so publishing never reveals where they live.
     -- Can't short-circuit into the SELECT below because SECURITY DEFINER
     -- makes that query bypass RLS regardless of who the caller is.
-    IF NOT can_see_gps(trip_uuid) THEN
+    IF NOT can_see_gps(trip_uuid) AND NOT EXISTS (
+        SELECT 1 FROM trips WHERE id = trip_uuid AND visibility = 'public'
+    ) THEN
         RETURN;
     END IF;
 
@@ -2840,7 +2847,7 @@ $$;
 -- Name: get_public_trip_track(uuid); Type: FUNCTION; Schema: -; Owner: -
 --
 
-COMMENT ON FUNCTION get_public_trip_track(uuid) IS 'Returns the GPS track for a trip, with points inside the owner''s privacy zones (home + trip exclusions) clipped out. Gated by can_see_gps(trip_uuid) (owner, or gps_visible_to permits the caller). SECURITY DEFINER — bypasses tracker_data RLS, which has no anon/public SELECT policy.';
+COMMENT ON FUNCTION get_public_trip_track(uuid) IS 'Returns the GPS track for a trip, with points inside the owner''s privacy zones (home + trip exclusions) clipped out. Gated by can_see_gps(trip_uuid) (owner, or gps_visible_to permits the caller) OR trips.visibility = ''public'' — public trips always serve their privacy-clipped track. SECURITY DEFINER — bypasses tracker_data RLS, which has no anon/public SELECT policy.';
 
 --
 -- Name: get_public_activity_track(uuid); Type: FUNCTION; Schema: -; Owner: -

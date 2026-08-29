@@ -528,6 +528,12 @@
 		"exclusionZones": "除外ゾーン",
 		"heatmap": "ヒートマップ",
 		"heatmapToggle": "過ごした場所を表示",
+		"roadMatch": "道路にスナップ",
+		"roadMatching": "スナップ中…",
+		"roadMatchToggle": "表示中のトラックをValhallaで道路にスナップ",
+		"roadMatchDisabledTitle": "ベータ機能 — アカウント設定で「道路に沿ったルート」を有効にしてください",
+		"roadMatchPartial": "この表示では道路との確実な一致がありません。一致しなかった部分は生のまま表示されます",
+		"roadMatchFailed": "道路スナップに失敗しました",
 		"segmentSelected": "セグメントを選択（{count}ポイント）",
 		"segmentSingular": "セグメント",
 		"segmentPlural": "セグメント",
@@ -1075,7 +1081,9 @@
 		"betaFeaturesTitle": "ベータ機能",
 		"betaFeaturesDescription": "実験的な機能を有効にします。これらは予告なく変更・削除される場合があります。",
 		"fitnessBetaName": "フィットネス",
-		"fitnessBetaDescription": ".fitワークアウトファイルをインポートして、セッション（心拍数、パワー、ケイデンス）を分析します。"
+		"fitnessBetaDescription": ".fitワークアウトファイルをインポートして、セッション（心拍数、パワー、ケイデンス）を分析します。",
+		"valhallaRoutesBetaName": "道路に沿ったルート",
+		"valhallaRoutesBetaDescription": "ルーティングサーバー（Valhalla）でトラックを道路に合わせます。より滑らかな旅行ルートと、位置データページの「道路にスナップ」表示。移動セグメントはルーティングサーバーに送信されます。"
 	},
 	"serverAdmin": {
 		"title": "サーバー管理設定",

@@ -230,7 +230,7 @@ export class SessionManagerService {
 			try {
 				const { data: profile } = await fluxbase
 					.from<Record<string, any>>('user_profiles')
-					.select('first_name, full_name, avatar_url, role')
+					.select('first_name, full_name, avatar_url, role, username')
 					.eq('id', session.user.id)
 					.single();
 				const enriched = Object.assign({}, session.user, profile || {});

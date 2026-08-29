@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { fade, fly } from 'svelte/transition';
-	import { ChevronDown, Crown, LogOut, Settings, User, X } from 'lucide-svelte';
+	import { ChevronDown, Crown, LogOut, Settings, User, UserRound, X } from 'lucide-svelte';
 
 	import { translate } from '$lib/i18n';
 	import { userStore } from '$lib/stores/auth';
@@ -135,6 +135,20 @@
 	</div>
 
 	<div class="p-2">
+		{#if $userStore?.username}
+			<a
+				href="/u/{$userStore.username}"
+				onclick={close}
+				class="hover:bg-muted flex items-center gap-3 rounded-lg p-2 text-sm {isActive(
+					`/u/${$userStore.username}`
+				)
+					? 'bg-primary/10 text-primary'
+					: 'text-foreground'}"
+			>
+				<UserRound class="h-4 w-4 shrink-0" />
+				{t('common.navigation.profile')}
+			</a>
+		{/if}
 		<a
 			href="/dashboard/account-settings"
 			onclick={close}

@@ -38,6 +38,8 @@
 	} from '$lib/services/transport-mode/visuals';
 	import { HomeAddressAdapter } from '$lib/services/api/adapters/home-address-adapter';
 	import { TripExclusionsApiService } from '$lib/services/api/trip-exclusions-api.service';
+	import { snapTrack, type RoadSnapSegment } from '$lib/services/road-snap.service';
+	import { isValhallaBetaEnabled, loadValhallaBeta } from '$lib/stores/valhalla-beta.svelte';
 	import {
 		getTransportDetectionReasonLabel,
 		type TransportDetectionReason
@@ -140,6 +142,16 @@
 	// points), built from the same rawDataPoints the circle-marker map uses.
 	let heatLayer: any = null;
 	let showHeatmap = $state(false);
+
+	// Snap-to-roads view layer: when on, the drawn track is replaced by
+	// Valhalla-matched segments (one per transport-mode run, mode-colored)
+	// fetched from the snap-track function. Pure view — nothing is written.
+	let snapToRoads = $state(false);
+	let isSnapping = $state(false);
+	let snappedSegments = $state<RoadSnapSegment[] | null>(null);
+	// The points currently drawn (set by drawDataPointsOnMap) — the input
+	// for road matching.
+	let currentViewPoints: any[] = [];
 
 	// Loading and progress state
 	let isLoading = $state(false);
@@ -363,6 +375,9 @@
 				drawDataPointsOnMap(rawDataPoints);
 				// Refresh the heat layer too (only renders if the toggle is on).
 				updateHeatmap(rawDataPoints);
+				// Re-match the new view if road snapping is active (cheap on
+				// re-loads of the same range — cached).
+				if (snapToRoads) applySnapToRoads();
 			}
 			// Fitness beta: overlay clickable session tracks for this period
 			drawFitnessSessions();
@@ -994,10 +1009,78 @@
 		}
 	}
 
+	// ─── Snap to roads (view layer) ─────────────────────────────────────────
+
+	// Per-user beta opt-in (beta_features.valhalla_routes) — also enforced
+	// inside the snap-track function; this only controls the button's state.
+	const roadSnapAvailable = $derived(isValhallaBetaEnabled());
+
+	/**
+	 * Cache key for the current view: point count + newest point + mode mix.
+	 * New data in the range or a relabel produces a fresh key, so the cached
+	 * snap can never go stale against what's on screen.
+	 */
+	function roadSnapCacheKey(points: any[]): string {
+		let newest = '';
+		const modeCounts: Record<string, number> = {};
+		for (const p of points) {
+			const ts = String(p.recorded_at ?? '');
+			if (ts > newest) newest = ts;
+			const m = p.transport_mode ?? 'unknown';
+			modeCounts[m] = (modeCounts[m] ?? 0) + 1;
+		}
+		return `${points.length}|${newest}|${JSON.stringify(modeCounts)}`;
+	}
+
+	async function applySnapToRoads() {
+		const pts = currentViewPoints;
+		if (!map || pts.length < 2) return;
+		isSnapping = true;
+		try {
+			const payload = pts
+				.map((p) => ({
+					lat: parseFloat(p.lat),
+					lng: parseFloat(p.lon),
+					mode: p.transport_mode ?? null
+				}))
+				.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+			const result = await snapTrack(payload, roadSnapCacheKey(pts));
+			snappedSegments = result.segments;
+			drawDataPointsOnMap(pts, { fit: false });
+			if (!result.matched) {
+				toast.info(
+					t('statistics.roadMatchPartial') ||
+						'No confident road match for this view — unmatched sections stay raw'
+				);
+			}
+		} catch (err: any) {
+			toast.error(t('statistics.roadMatchFailed') || 'Road matching failed', {
+				description: err?.message
+			});
+			snapToRoads = false;
+			snappedSegments = null;
+			drawDataPointsOnMap(pts, { fit: false });
+		} finally {
+			isSnapping = false;
+		}
+	}
+
+	async function toggleSnapToRoads() {
+		if (snapToRoads) {
+			snapToRoads = false;
+			snappedSegments = null;
+			if (map && currentViewPoints.length) drawDataPointsOnMap(currentViewPoints, { fit: false });
+			return;
+		}
+		snapToRoads = true;
+		await applySnapToRoads();
+	}
+
 	// Draw data points on map. `fit: false` redraws in place (used after a
 	// transport-mode save) so the viewport doesn't jump back out to the full
 	// date-range extent; only the initial load / date change fits the map.
 	function drawDataPointsOnMap(dataPoints: any[], opts: { fit?: boolean } = {}) {
+		currentViewPoints = dataPoints;
 		if (!map || !L || !dataPoints.length) return;
 
 		// Clear existing markers
@@ -1008,39 +1091,60 @@
 			(a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
 		);
 
-		// Draw lines between consecutive points
-		for (let i = 0; i < sortedPoints.length - 1; i++) {
-			const currentPoint = sortedPoints[i];
-			const nextPoint = sortedPoints[i + 1];
+		// Track lines: Valhalla-matched segments when snap-to-roads is active
+		// (one polyline per transport-mode run, keeping the mode colors), else
+		// a line between each consecutive point pair.
+		const snappedActive = snapToRoads && (snappedSegments?.length ?? 0) > 0;
+		if (snappedActive && snappedSegments) {
+			for (const seg of snappedSegments) {
+				if (seg.points.length < 2) continue;
+				const polyline = L.polyline(
+					seg.points.map((p) => [p.lat, p.lng] as [number, number]),
+					{
+						color: transportModeColor(seg.mode || 'unknown'),
+						weight: 4,
+						opacity: 0.9
+					}
+				);
+				// Add to map
+				polyline.addTo(map);
+				mapMarkers.push(polyline);
+			}
+		} else {
+			// Draw lines between consecutive points
+			for (let i = 0; i < sortedPoints.length - 1; i++) {
+				const currentPoint = sortedPoints[i];
+				const nextPoint = sortedPoints[i + 1];
 
-			if (currentPoint.lat && currentPoint.lon && nextPoint.lat && nextPoint.lon) {
-				const currentLat = parseFloat(currentPoint.lat);
-				const currentLon = parseFloat(currentPoint.lon);
-				const nextLat = parseFloat(nextPoint.lat);
-				const nextLon = parseFloat(nextPoint.lon);
+				if (currentPoint.lat && currentPoint.lon && nextPoint.lat && nextPoint.lon) {
+					const currentLat = parseFloat(currentPoint.lat);
+					const currentLon = parseFloat(currentPoint.lon);
+					const nextLat = parseFloat(nextPoint.lat);
+					const nextLon = parseFloat(nextPoint.lon);
 
-				if (!isNaN(currentLat) && !isNaN(currentLon) && !isNaN(nextLat) && !isNaN(nextLon)) {
-					// Use the transport mode of the NEXT point for the line color
-					// The detection at nextPoint tells us what mode was used to REACH that point
-					const mode = nextPoint.transport_mode || 'unknown';
-					const color = transportModeColor(mode);
+					if (!isNaN(currentLat) && !isNaN(currentLon) && !isNaN(nextLat) && !isNaN(nextLon)) {
+						// Use the transport mode of the NEXT point for the line color
+						// The detection at nextPoint tells us what mode was used to REACH that point
+						const mode = nextPoint.transport_mode || 'unknown';
+						const color = transportModeColor(mode);
 
-					// Create polyline between consecutive points
-					const polyline = L.polyline(
-						[
-							[currentLat, currentLon],
-							[nextLat, nextLon]
-						],
-						{
-							color: color,
-							weight: 3,
-							opacity: 0.7
-						}
-					);
+						// Create polyline between consecutive points
+						const polyline = L.polyline(
+							[
+								[currentLat, currentLon],
+								[nextLat, nextLon]
+							],
+							{
+								color: color,
+								weight: 3,
+								opacity: 0.7
+							}
+						);
 
-					// Add to map
-					polyline.addTo(map);
-					mapMarkers.push(polyline);
+						// Add to map
+						polyline.addTo(map);
+						mapMarkers.push(polyline);
+					}
 				}
 			}
 		}
@@ -1067,16 +1171,17 @@
 					const lon = parseFloat(point.lon);
 
 					if (!isNaN(lat) && !isNaN(lon)) {
-						// Create circle marker. bubblingMouseEvents: false keeps the
-						// click from also firing the map's click handler, which
-						// would immediately deselect the point again.
+						// Draw markers for each transport mode. Dimmed while road
+						// matching is active: they stay clickable (segment
+						// relabelling keeps working) but visually recede
+						// behind the snapped lines.
 						const marker = L.circleMarker([lat, lon], {
 							radius: 4,
 							fillColor: color,
 							color: color,
 							weight: 1,
-							opacity: 0.8,
-							fillOpacity: 0.6,
+							opacity: snappedActive ? 0.3 : 0.8,
+							fillOpacity: snappedActive ? 0.2 : 0.6,
 							bubblingMouseEvents: false
 						});
 
@@ -1365,6 +1470,9 @@
 			}
 			selectedSegmentIdxs = new Set(selectedSegmentIdxs);
 			drawDataPointsOnMap(rawDataPoints, { fit: false });
+			// Modes changed → a snapped rendering would be stale. Re-match: the
+			// mode mix is part of the cache key, so this is a fresh request.
+			if (snapToRoads) applySnapToRoads();
 
 			toast.success(
 				mode === null
@@ -1476,12 +1584,13 @@
 			}
 		})();
 
-		// Fire-and-forget: fitness beta opt-in flag, then session overlays for
+		// Fire-and-forget: beta opt-in flags, then session overlays for
 		// the current date range (drawn on top of the regular data points).
 		(async () => {
 			try {
 				await loadFitnessBeta();
 				fitnessBeta = isFitnessBetaEnabled();
+				await loadValhallaBeta();
 				await loadFitnessSessions();
 			} catch {
 				/* non-fatal */
@@ -1853,6 +1962,29 @@
 		>
 			<Flame class="h-4 w-4" />
 			{t('statistics.heatmap') || 'Heatmap'}
+		</button>
+
+		<!-- Snap-to-roads toggle -->
+		<button
+			type="button"
+			onclick={toggleSnapToRoads}
+			disabled={!roadSnapAvailable || isSnapping}
+			class="absolute top-16 right-4 z-[1001] inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition-colors {snapToRoads
+				? 'border-primary bg-primary text-primary-foreground'
+				: 'border-border bg-card text-foreground hover:bg-muted'} disabled:cursor-not-allowed disabled:opacity-50"
+			title={!roadSnapAvailable
+				? t('statistics.roadMatchDisabledTitle') ||
+					'Road matching is disabled on this server (see server admin settings)'
+				: t('statistics.roadMatchToggle') || 'Match the visible track to roads via Valhalla'}
+		>
+			{#if isSnapping}
+				<Loader2 class="h-4 w-4 animate-spin" />
+			{:else}
+				<Route class="h-4 w-4" />
+			{/if}
+			{isSnapping
+				? t('statistics.roadMatching') || 'Matching…'
+				: t('statistics.roadMatch') || 'Snap to roads'}
 		</button>
 
 		<!-- Map Legend -->

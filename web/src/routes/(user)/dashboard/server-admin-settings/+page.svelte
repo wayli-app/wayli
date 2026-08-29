@@ -68,6 +68,7 @@
 	let pexelsRateLimit = $state(200); // Default: 200 requests/hour
 	let peliasEndpoint = $state('https://pelias.wayli.app');
 	let valhallaEndpoint = $state('https://valhalla.wayli.app');
+	let isGeneratingTripRoutes = $state(false);
 
 	// Tavily web-search integration (Fluxbase ai.tool_integrations)
 	let tavilyIntegration = $state<any | null>(null);
@@ -1628,6 +1629,35 @@
 		}
 	}
 
+	async function generateTripRoutesAllUsers() {
+		if (isGeneratingTripRoutes) return;
+
+		isGeneratingTripRoutes = true;
+		try {
+			// Snap the trips of every user who opted into the road-snapping
+			// beta (account setting) to the road network via Valhalla —
+			// backfill + keep-fresh; same job the daily cron runs.
+			// tracker_data is never modified — only trips.metadata.
+			const { error } = await fluxbase.jobs.submit(
+				'scheduled-generate-trip-routes',
+				{},
+				{
+					namespace: 'wayli',
+					priority: 5
+				}
+			);
+			if (error) throw error;
+			toast.success('Trip route generation queued');
+		} catch (error: any) {
+			console.error('Failed to queue trip route generation:', error);
+			toast.error('Failed to queue trip route generation', {
+				description: error?.message
+			});
+		} finally {
+			isGeneratingTripRoutes = false;
+		}
+	}
+
 	/**
 	 * Persist all settings blocks in one action. Each block's own handler
 	 * validates + writes + toasts; this orchestrates them and adds a single
@@ -3103,12 +3133,7 @@
 						</div>
 					</div>
 					<div class="space-y-4">
-						<label class="flex items-center gap-3">
-							<input
-								type="checkbox"
-								bind:checked={communityEnabled}
-								class="border-border h-4 w-4 rounded"
-							/>
+						<div class="flex items-start justify-between gap-4">
 							<div>
 								<span class="text-foreground text-sm font-medium">Enable community hub</span>
 								<p class="text-muted-foreground text-xs">
@@ -3116,7 +3141,8 @@
 									it redirects to the configured user's blog (or shows a sign-in page).
 								</p>
 							</div>
-						</label>
+							<Switch bind:checked={communityEnabled} label="Enable community hub" />
+						</div>
 						<button
 							type="button"
 							onclick={saveCommunitySettings}
@@ -3743,6 +3769,33 @@
 											class={`h-3.5 w-3.5 ${isDetectingTransportModes ? 'animate-spin' : ''}`}
 										/>
 										{isDetectingTransportModes ? t('serverAdmin.running') : t('serverAdmin.run')}
+									</button>
+								</div>
+
+								<!-- Generate Trip Routes (Valhalla) -->
+								<div
+									class="dark:border-border dark:bg-card flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4"
+								>
+									<div class="text-muted-foreground shrink-0">
+										<MapPin class="h-5 w-5" />
+									</div>
+									<div class="min-w-0 flex-1">
+										<span class="text-foreground text-sm font-medium"> Generate Trip Routes </span>
+										<p class="text-muted-foreground mt-0.5 text-xs">
+											Snap the trips of users who enabled the Road-Snapped Routes beta in their
+											account settings to the road network via Valhalla (read-only on location data;
+											privacy zones clipped).
+										</p>
+									</div>
+									<button
+										onclick={generateTripRoutesAllUsers}
+										disabled={isGeneratingTripRoutes}
+										class="bg-primary hover:bg-primary/90 inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap text-white disabled:cursor-not-allowed disabled:opacity-50"
+									>
+										<RefreshCw
+											class={`h-3.5 w-3.5 ${isGeneratingTripRoutes ? 'animate-spin' : ''}`}
+										/>
+										{isGeneratingTripRoutes ? t('serverAdmin.running') : t('serverAdmin.run')}
 									</button>
 								</div>
 

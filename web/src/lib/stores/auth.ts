@@ -6,7 +6,7 @@ import type { UserProfile } from '$lib/types/user.types';
 import type { AuthSession, User } from '@nimbleflux/fluxbase-sdk';
 
 type AuthStore = User &
-	Partial<Pick<UserProfile, 'first_name' | 'full_name' | 'avatar_url' | 'role'>>;
+	Partial<Pick<UserProfile, 'first_name' | 'full_name' | 'avatar_url' | 'role' | 'username'>>;
 
 function createAuthStore() {
 	const store = writable<AuthStore | null>(null);

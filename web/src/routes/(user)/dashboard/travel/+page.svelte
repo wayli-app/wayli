@@ -12,6 +12,8 @@
 		deleteEntry
 	} from '$lib/services/trip-entry.service';
 	import { fetchTrackPoints } from '$lib/services/gps.service';
+	import { fromStoredSegments } from '$lib/services/trip-route/trip-route-geometry';
+	import { isValhallaBetaEnabled, loadValhallaBeta } from '$lib/stores/valhalla-beta.svelte';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { getTripsService } from '$lib/services/service-layer-adapter';
 	import { aiDrawer, type PlanSuggestion } from '$lib/stores/ai-drawer';
@@ -216,6 +218,18 @@
 		activeTripId ? (gpsCache.get(activeTripId) ?? []).map((p) => ({ lat: p.lat, lng: p.lng })) : []
 	);
 
+	// Valhalla-snapped route for the active trip (trips.metadata.routeShape),
+	// preferred over the raw points for opted-in (beta) users. Already
+	// privacy-clipped server-side.
+	const activeTripRouteSegments = $derived.by(() => {
+		if (!activeTripId) return [];
+		if (!isValhallaBetaEnabled()) return [];
+		const trip = trips.find((t) => t.id === activeTripId);
+		const stored = (trip?.metadata as any)?.routeShape?.segments;
+		if (!Array.isArray(stored) || stored.length === 0) return [];
+		return fromStoredSegments(stored);
+	});
+
 	const highlightPoints = $derived.by(() => {
 		if (!activeEntryId) return [];
 		const entry = entries.find((e) => e.id === activeEntryId);
@@ -256,6 +270,9 @@
 	});
 
 	onMount(() => {
+		// Fire-and-forget: road-snapping beta opt-in gates snapped map rendering.
+		void loadValhallaBeta();
+
 		// Svelte never runs a cleanup returned from an async onMount — wrap the
 		// async body so the handler reset in the real cleanup below fires.
 		(async () => {
@@ -1648,11 +1665,12 @@
 											<Loader2 class="h-3.5 w-3.5 animate-spin" />
 											{t('common.status.loading')}
 										</div>
-									{:else if activeTripId === trip.id && (mapPoints.length > 0 || mapMarkers.length > 0)}
+									{:else if activeTripId === trip.id && (mapPoints.length > 0 || mapMarkers.length > 0 || activeTripRouteSegments.length > 0)}
 										<div class="border-border border-b lg:hidden">
 											{#key activeTripId}
 												<TripMap
 													points={mapPoints}
+													segments={activeTripRouteSegments}
 													markers={mapMarkers}
 													{highlightPoints}
 													class="h-48"
@@ -2231,10 +2249,11 @@
 								</span>
 							{/if}
 						</div>
-						{#if mapPoints.length > 0 || mapMarkers.length > 0}
+						{#if mapPoints.length > 0 || mapMarkers.length > 0 || activeTripRouteSegments.length > 0}
 							{#key activeTripId}
 								<TripMap
 									points={mapPoints}
+									segments={activeTripRouteSegments}
 									markers={mapMarkers}
 									{highlightPoints}
 									class="h-[420px]"
