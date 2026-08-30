@@ -65,10 +65,11 @@ describe('detectTransportModes', () => {
 	});
 
 	test('highway car journey with realistic speed variation decodes to car', () => {
-		// Real highway driving has CV > 0.15 (traffic, gentle braking) — the
-		// signal that separates it from a train. Perfectly steady speeds are
-		// legitimately train-like, so this test uses realistic variation.
-		const obs = run([88, 105, 92, 110, 85, 98, 102]);
+		// Real highway driving has CV > 0.15 (traffic, braking, overtaking) —
+		// the signal that separates it from a train. Steady overlap-band speeds
+		// legitimately lean train now (Stage-2 arbitrates with map matching),
+		// so this fixture varies hard enough to sit clearly in car territory.
+		const obs = run([65, 108, 80, 118, 72, 100, 95, 85, 112, 78]);
 		const decisions = detectTransportModes(obs);
 		expect(decisions.every((d) => d.mode === 'car' || d.mode === 'train')).toBe(true);
 		const car = decisions.filter((d) => d.mode === 'car').length;
@@ -289,5 +290,38 @@ describe('segmentByGaps', () => {
 
 	test('a single item is a single one-element segment', () => {
 		expect(segmentByGaps(tsAt([42]))).toEqual([[0]]);
+	});
+});
+
+// The Jul-24/26 failure mode: a train cruising 120-160 km/h with no
+// station geocode used to decode as car (the old train/car special case
+// stopped at 115 km/h and the 0.5 prior lost every tie).
+function steadyRun(speeds: number[]) {
+	return speeds.map((speed, i) => ({
+		timestamp: i * 60_000,
+		lat: 52 + i * 0.05, // ~5.5 km/min ≈ 130-160 km/h ground truth
+		lng: 5 + i * 0.01,
+		speed,
+		heading: 20,
+		accuracy: 12,
+		geocode: null
+	}));
+}
+
+describe('v2: intercity train detection (no geocode context)', () => {
+	test('sustained 130-150 km/h with low CV decodes to train without any station context', () => {
+		const decisions = detectTransportModes(
+			steadyRun([135, 142, 138, 148, 140, 133, 145, 150, 139, 144])
+		);
+		const train = decisions.filter((d) => d.mode === 'train').length;
+		expect(train).toBeGreaterThanOrEqual(7);
+	});
+
+	test('variable 90-130 km/h traffic stays car', () => {
+		const decisions = detectTransportModes(
+			steadyRun([65, 128, 88, 135, 70, 118, 95, 122, 80, 110])
+		);
+		const car = decisions.filter((d) => d.mode === 'car').length;
+		expect(car).toBeGreaterThanOrEqual(5);
 	});
 });

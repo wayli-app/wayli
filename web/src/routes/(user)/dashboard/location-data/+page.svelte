@@ -1041,7 +1041,9 @@
 				.map((p) => ({
 					lat: parseFloat(p.lat),
 					lng: parseFloat(p.lon),
-					mode: p.transport_mode ?? null
+					mode: p.transport_mode ?? null,
+					// Timestamps enable the off-road (train/plane) rules.
+					t: p.recorded_at ? new Date(p.recorded_at).getTime() : undefined
 				}))
 				.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
 			const result = await snapTrack(payload, roadSnapCacheKey(pts));
@@ -1098,12 +1100,19 @@
 		if (snappedActive && snappedSegments) {
 			for (const seg of snappedSegments) {
 				if (seg.points.length < 2) continue;
+				// Bridge segments are inserted connectors between runs —
+				// dashed and neutral so they read as "connection", while
+				// classified runs (incl. off-road trains) keep their mode
+				// color. Off-road runs carry their raw geometry, so nothing
+				// is ever dropped from the drawing.
+				const isBridge = seg.bridge === true;
 				const polyline = L.polyline(
 					seg.points.map((p) => [p.lat, p.lng] as [number, number]),
 					{
-						color: transportModeColor(seg.mode || 'unknown'),
-						weight: 4,
-						opacity: 0.9
+						color: transportModeColor(isBridge ? 'unknown' : seg.mode || 'unknown'),
+						weight: isBridge ? 2 : 4,
+						opacity: isBridge ? 0.6 : 0.9,
+						...(isBridge ? { dashArray: '4 6' } : {})
 					}
 				);
 				// Add to map

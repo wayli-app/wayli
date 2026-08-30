@@ -9,8 +9,13 @@ import {
 	toStoredSegments,
 	fromStoredSegments,
 	downsampleSegments,
+	runKinematics,
+	meanNearestDistanceMeters,
+	classifyOffRoadRun,
+	assembleRouteSegments,
 	type LatLng,
-	type PrivacyZone
+	type PrivacyZone,
+	type RunKinematics
 } from './trip-route-geometry';
 
 const p = (lat: number, lng: number): LatLng => ({ lat, lng });
@@ -171,5 +176,120 @@ describe('downsampleSegments', () => {
 		expect(out[0][0].lat).toBeCloseTo(segs[0][0].lat, 10);
 		expect(out[0][out[0].length - 1].lat).toBeCloseTo(segs[0][999].lat, 10);
 		expect(out[1][out[1].length - 1].lat).toBeCloseTo(segs[1][999].lat, 10);
+	});
+});
+
+describe('runKinematics', () => {
+	const tp = (lat: number, t: number) => ({ ...p(lat, 5), t });
+
+	test('computes distance, duration and average speed', () => {
+		// 10 points, 1 km apart (0.009° lat), one per minute.
+		const pts = Array.from({ length: 10 }, (_, i) => tp(52 + i * 0.009, i * 60_000));
+		const kin = runKinematics(pts)!;
+		expect(kin.distanceMeters).toBeGreaterThan(8900);
+		expect(kin.distanceMeters).toBeLessThan(10000);
+		expect(kin.durationSeconds).toBe(540);
+		expect(kin.avgSpeedKmh).toBeGreaterThan(55);
+		expect(kin.avgSpeedKmh).toBeLessThan(65);
+	});
+
+	test('returns null without timestamps', () => {
+		expect(runKinematics([p(52, 5), p(52.01, 5)])).toBeNull();
+	});
+});
+
+describe('meanNearestDistanceMeters', () => {
+	test('zero when sequences coincide', () => {
+		const pts = [p(52, 5), p(52.01, 5), p(52.02, 5)];
+		expect(meanNearestDistanceMeters(pts, pts)).toBeCloseTo(0, 6);
+	});
+
+	test('mean deviation of a parallel track', () => {
+		const raw = [p(52, 5), p(52.01, 5), p(52.02, 5)];
+		// Snapped line shifted ~0.0045° lat (≈500 m) north.
+		const snapped = [p(52.0045, 5), p(52.0145, 5), p(52.0245, 5)];
+		const d = meanNearestDistanceMeters(raw, snapped);
+		expect(d).toBeGreaterThan(450);
+		expect(d).toBeLessThan(550);
+	});
+
+	test('empty inputs are infinite', () => {
+		expect(meanNearestDistanceMeters([], [p(52, 5)])).toBe(Infinity);
+	});
+});
+
+describe('classifyOffRoadRun', () => {
+	const kin = (km: number, dist: number): RunKinematics => ({
+		distanceMeters: dist,
+		durationSeconds: dist / (km / 3.6),
+		avgSpeedKmh: km
+	});
+
+	test('poor match + long + rail speed → train', () => {
+		expect(classifyOffRoadRun(kin(120, 60_000), true)).toBe('train');
+	});
+
+	test('good match at motorway speed stays a car', () => {
+		expect(classifyOffRoadRun(kin(120, 60_000), false)).toBeNull();
+	});
+
+	test('long but slow is never a train', () => {
+		expect(classifyOffRoadRun(kin(30, 20_000), true)).toBeNull();
+	});
+
+	test('short rail-like burst is not enough', () => {
+		expect(classifyOffRoadRun(kin(100, 5_000), true)).toBeNull();
+	});
+
+	test('beyond rail speed → airplane', () => {
+		expect(classifyOffRoadRun(kin(700, 200_000), true)).toBe('airplane');
+	});
+
+	test('no timing → no classification', () => {
+		expect(classifyOffRoadRun(null, true)).toBeNull();
+	});
+});
+
+describe('assembleRouteSegments', () => {
+	const home: PrivacyZone = { lat: 52.0, lng: 5.0, radius_m: 500 };
+
+	test('bridges consecutive runs without zones', () => {
+		const runA = [[p(51.99, 5), p(51.995, 5)]];
+		const runB = [[p(52.005, 5), p(52.01, 5)]];
+		const out = assembleRouteSegments([runA, runB]);
+		expect(out).toHaveLength(3);
+		expect(out[0].bridge).toBe(false);
+		expect(out[1].bridge).toBe(true);
+		expect(out[1].points).toEqual([p(51.995, 5), p(52.005, 5)]);
+		expect(out[2].bridge).toBe(false);
+	});
+
+	test('does not bridge across a privacy zone', () => {
+		// runA ends 556 m south of home, runB starts 556 m north — the straight
+		// connector passes straight over the zone center.
+		const runA = [[p(51.995, 5), p(51.9951, 5)]];
+		const runB = [[p(52.0049, 5), p(52.005, 5)]];
+		const out = assembleRouteSegments([runA, runB], [home]);
+		expect(out.filter((s) => s.bridge)).toHaveLength(0);
+		expect(out).toHaveLength(2);
+	});
+
+	test('bridges around a zone when the connector stays outside', () => {
+		// Both runs west of the zone, connector far from it.
+		const runA = [[p(52.2, 4.9), p(52.2, 4.95)]];
+		const runB = [[p(52.21, 4.95), p(52.21, 5.0)]];
+		const out = assembleRouteSegments([runA, runB], [home]);
+		expect(out.filter((s) => s.bridge)).toHaveLength(1);
+	});
+
+	test('zone gaps inside one run stay open (no internal bridging)', () => {
+		// One run whose clipped pieces straddle the home zone.
+		const pieces = [
+			[p(51.99, 5), p(51.995, 5)],
+			[p(52.005, 5), p(52.01, 5)]
+		];
+		const out = assembleRouteSegments([pieces]);
+		expect(out).toHaveLength(2);
+		expect(out.every((s) => !s.bridge)).toBe(true);
 	});
 });

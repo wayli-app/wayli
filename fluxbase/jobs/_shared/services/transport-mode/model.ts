@@ -56,7 +56,9 @@ export function emissionScores(f: ModeFeatures, segCtx?: SegmentContext): number
 		walking: 1.0,
 		cycling: 0.9,
 		car: 1.0,
-		train: 0.5,
+		// 0.5 made every ambiguous call default to car; 0.7 still favors
+		// evidence over prior but no longer structurally biases against train.
+		train: 0.7,
 		airplane: 0.05
 	};
 	// Per-point station proximity is on the feature (f.stationProximity).
@@ -78,16 +80,18 @@ export function emissionScores(f: ModeFeatures, segCtx?: SegmentContext): number
 		} else {
 			s = Math.max(0.0008, 0.1 * Math.max(0, 1 - (f.speed - limits.max) / 15));
 		}
-		// Train-vs-car in the 55-115 overlap. Strong steady->train boost gated
-		// on per-point rail context (f.stationProximity, time-decayed from a
-		// station) — cruise control is equally steady, so without nearby rail
-		// context the overlap stays a balanced call leaning car.
+		// Train-vs-car wherever their physical bands overlap in practice: 55-180
+		// km/h. Intercity trains cruise at 120-160 — inside car's core band, where
+		// a bare prior comparison would always pick car (v2 fix: the old 55-115
+		// band left everything above it to car). Steadiness is the discriminator:
+		// a train holds speed for tens of minutes (low CV), city driving doesn't.
+		// Station/rail context (geocode) still amplifies the train boost but is no
+		// longer required for it.
 		if (mode === 'train' || mode === 'car') {
-			if (f.speed >= 55 && f.speed <= 115) {
-				const railBoost = 1.3 + (2.6 - 1.3) * f.stationProximity; // 1.3 .. 2.6
+			if (f.speed >= 55 && f.speed <= 180) {
+				const railBoost = 1.8 + (2.6 - 1.8) * f.stationProximity; // 1.8 .. 2.6
 				if (mode === 'train') {
-					if (f.speedCV < 0.08) s *= railBoost;
-					else if (f.speedCV < 0.12) s *= 1.1;
+					if (f.speedCV < SPEED_CV_THRESHOLDS.TRAIN_LIKE) s *= railBoost;
 					else if (f.speedCV > SPEED_CV_THRESHOLDS.CAR_LIKE) s *= 0.6;
 				} else {
 					if (f.speedCV > SPEED_CV_THRESHOLDS.CAR_LIKE) s *= 1.3;
@@ -100,7 +104,10 @@ export function emissionScores(f: ModeFeatures, segCtx?: SegmentContext): number
 		if (mode === 'train' && f.atTrainStation) s *= 4.0;
 		if (mode === 'train' && f.stationProximity > 0) s *= 1 + 1.6 * f.stationProximity;
 		if (mode === 'airplane' && f.atAirport) s *= 4.0;
-		if (mode === 'car' && f.onHighway && f.speed > 50) s *= 1.8;
+		// Highway context boosts car, but only at speeds cars actually sustain on
+		// them — a 160 km/h "highway" reading is more likely a train on a parallel
+		// corridor than a car (and geocode can attach to rail-adjacent roads).
+		if (mode === 'car' && f.onHighway && f.speed > 50 && f.speed <= 150) s *= 1.8;
 		if (mode === 'stationary' && f.atVenue && f.speed < 3) s *= 2.5;
 		if (f.atTrainStation && (mode === 'car' || mode === 'cycling')) s *= 0.3;
 		if (f.stationProximity > 0 && mode === 'car' && f.speed > 30) s *= 1 - 0.4 * f.stationProximity;

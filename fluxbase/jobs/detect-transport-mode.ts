@@ -17,6 +17,7 @@
 
 import type { FluxbaseClient, JobUtils } from './types';
 import { decodeAndPersist } from './_shared/services/transport-mode/run-helpers.ts';
+import { detectTransportModes } from './_shared/services/transport-mode/detector.ts';
 
 export async function handler(
 	_req: Request,
@@ -33,8 +34,14 @@ export async function handler(
 	console.log(`🚆 Starting transport-mode detection for user ${userId}`);
 	job.reportProgress(5, 'Decoding transport modes...');
 
+	// Optional payload: { "reprocess_all": true } forces a full 3-year
+	// re-decode for this user regardless of watermark.
+	const reprocessAll = (context.payload as any)?.reprocess_all === true;
+
 	try {
-		const updated = await decodeAndPersist(fluxbaseService, userId, new Date());
+		const updated = await decodeAndPersist(fluxbaseService, userId, new Date(), detectTransportModes, {
+			reprocessAll
+		});
 		job.reportProgress(100, `Done: ${updated} points decoded`);
 		console.log(`✅ Transport-mode detection complete: ${updated} points for user ${userId}`);
 		return { success: true, result: { points_processed: updated, user_id: userId } };

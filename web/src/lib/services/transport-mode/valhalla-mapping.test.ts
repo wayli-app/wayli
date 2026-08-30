@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { modeFromEdges, matchedDistanceMeters } from './valhalla-mapping';
+import { modeFromEdges, matchedDistanceMeters, offRoadClassification } from './valhalla-mapping';
 import type { ValhallaEdge } from './valhalla.service';
 
 const edge = (overrides: Partial<ValhallaEdge> = {}): ValhallaEdge => ({
@@ -111,5 +111,138 @@ describe('matchedDistanceMeters', () => {
 
 	test('empty → 0', () => {
 		expect(matchedDistanceMeters([])).toBe(0);
+	});
+});
+
+describe('modeFromEdges kinematic sanity gates (v2)', () => {
+	const footwayEdges = [edge({ use: 'footway', road_class: 'service_other', speed: 5, length: 5 })];
+
+	test('walking verdict rejected above 15 km/h p90 (the Jul-7 failure)', () => {
+		expect(
+			modeFromEdges(footwayEdges, { p90Kmh: 63, avgKmh: 20, pathMeters: 8900, durationSec: 1600 })
+		).toBeNull();
+		expect(
+			modeFromEdges(footwayEdges, { p90Kmh: 10, avgKmh: 5, pathMeters: 800, durationSec: 600 })
+				?.mode
+		).toBe('walking');
+	});
+
+	test('cycling verdict rejected above 35 km/h p90', () => {
+		const edges = [edge({ use: 'cycleway', speed: 20, length: 4 })];
+		expect(
+			modeFromEdges(edges, { p90Kmh: 60, avgKmh: 50, pathMeters: 3000, durationSec: 220 })
+		).toBeNull();
+		expect(
+			modeFromEdges(edges, { p90Kmh: 25, avgKmh: 20, pathMeters: 2000, durationSec: 360 })?.mode
+		).toBe('cycling');
+	});
+
+	test('car verdict rejected above 200 km/h p90', () => {
+		const edges = [edge({ road_class: 'motorway', speed: 150, length: 10 })];
+		expect(
+			modeFromEdges(edges, { p90Kmh: 230, avgKmh: 220, pathMeters: 20000, durationSec: 330 })
+		).toBeNull();
+		expect(
+			modeFromEdges(edges, { p90Kmh: 150, avgKmh: 140, pathMeters: 20000, durationSec: 510 })?.mode
+		).toBe('car');
+	});
+
+	test('rail verdict is NOT speed-gated (definitive when present)', () => {
+		const edges = [edge({ rail: true, length: 5, road_class: 'primary' })];
+		expect(
+			modeFromEdges(edges, { p90Kmh: 160, avgKmh: 150, pathMeters: 20000, durationSec: 480 })?.mode
+		).toBe('train');
+	});
+});
+
+describe('offRoadClassification', () => {
+	// Simulates an intercity train: ~55 km path, ~36 min, 130 km/h cruise —
+	// the shape of the Jul 24 / Jul 26 traces.
+	const trainRaw = Array.from({ length: 12 }, (_, i) => ({
+		lat: 52 + i * 0.05,
+		lng: 5 + i * 0.01
+	}));
+	const trainSpeeds = Array.from({ length: 12 }, () => 140);
+	const trainDuration = 11 * 240; // seconds
+
+	test('poor match (short matched length) at rail speed → train', () => {
+		const v = offRoadClassification({
+			raw: trainRaw,
+			shape: [],
+			edges: [edge({ length: 0.5, speed: 50 }), edge({ length: 0.5, speed: 30 })],
+			speedsKmh: trainSpeeds,
+			durationSec: trainDuration
+		});
+		expect(v?.mode).toBe('train');
+		expect(v?.evidence).toBe('valhalla_offroad_rail');
+		expect(v?.confidence).toBe(0.85);
+	});
+
+	test('plausible match (full-length fast motorway) → null (stays car)', () => {
+		const shape = trainRaw.map((p) => ({ lat: p.lat, lon: p.lng }));
+		const v = offRoadClassification({
+			raw: trainRaw,
+			shape,
+			edges: [
+				edge({ road_class: 'motorway', length: 30, speed: 130 }),
+				edge({ road_class: 'motorway', length: 25, speed: 125 })
+			],
+			speedsKmh: trainSpeeds,
+			durationSec: trainDuration
+		});
+		expect(v).toBeNull();
+	});
+
+	test('slow shared-edge check: most matched edges far slower than GPS → train', () => {
+		const shape = trainRaw.map((p) => ({ lat: p.lat + 0.001, lon: p.lng }));
+		const v = offRoadClassification({
+			raw: trainRaw,
+			shape,
+			edges: [
+				edge({ length: 20, speed: 50 }),
+				edge({ length: 20, speed: 50 }),
+				edge({ length: 10, speed: 120 })
+			],
+			speedsKmh: trainSpeeds,
+			durationSec: trainDuration
+		});
+		expect(v?.mode).toBe('train');
+	});
+
+	test('below rail speed (city tram-like ~28 km/h avg) → null (no train claim)', () => {
+		// avg = path/duration: 61 km over 8000 s ≈ 28 km/h — under the train window.
+		const v = offRoadClassification({
+			raw: trainRaw,
+			shape: [],
+			edges: [],
+			speedsKmh: trainSpeeds,
+			durationSec: 8000
+		});
+		expect(v).toBeNull();
+	});
+
+	test('sustained beyond-rail speed over long path → airplane', () => {
+		// avg = path/duration: 61 km over 700 s ≈ 315 km/h — above the rail window.
+		const v = offRoadClassification({
+			raw: trainRaw,
+			shape: [],
+			edges: [],
+			speedsKmh: trainSpeeds,
+			durationSec: 700
+		});
+		expect(v?.mode).toBe('airplane');
+		expect(v?.evidence).toBe('valhalla_offroad_air');
+	});
+
+	test('no timing information → null', () => {
+		expect(
+			offRoadClassification({
+				raw: trainRaw,
+				shape: [],
+				edges: [],
+				speedsKmh: trainSpeeds,
+				durationSec: null
+			})
+		).toBeNull();
 	});
 });

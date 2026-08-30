@@ -20,6 +20,10 @@ export interface RoadSnapSegment {
 	mode: string | null;
 	matched: boolean;
 	points: Array<{ lat: number; lng: number }>;
+	/** Inserted connector between runs — render dashed/neutral. */
+	bridge?: boolean;
+	/** Off-road classification ('off-road-train' | 'off-road-airplane'). */
+	reason?: string;
 }
 
 export interface RoadSnapResult {

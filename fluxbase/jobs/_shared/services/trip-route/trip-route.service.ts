@@ -28,10 +28,15 @@
 import { traceAttributes, type ValhallaTracePoint } from '../external/valhalla.service.ts';
 import {
 	clipPolylineToZones,
+	classifyOffRoadRun,
 	costingForRunMode,
 	downsampleSegments,
+	meanNearestDistanceMeters,
+	POOR_MATCH_METERS,
+	runKinematics,
 	splitIntoModeRuns,
 	toStoredSegments,
+	assembleRouteSegments,
 	type LatLng,
 	type PrivacyZone,
 	type RouteShape
@@ -113,21 +118,22 @@ function parseLocation(location: any): { lat: number; lng: number } | null {
 /**
  * Load a trip's tracker points (read-only), time-ordered, strided down to
  * MAX_INPUT_POINTS. Same date window as get_public_trip_track(): start of
- * start_date through end of end_date.
+ * start_date through end of end_date. Timestamps (epoch ms) ride along for
+ * the off-road (train/plane) kinematic rules.
  */
 async function loadTripPoints(
 	db: FluxbaseClient,
 	trip: TripForRoute
-): Promise<Array<LatLng & { transport_mode: string | null }>> {
+): Promise<Array<LatLng & { transport_mode: string | null; t?: number }>> {
 	const sd = (trip.start_date || '').slice(0, 10);
 	const ed = (trip.end_date || trip.start_date || '').slice(0, 10);
 
-	const all: Array<{ lat: number; lng: number; transport_mode: string | null }> = [];
+	const all: Array<{ lat: number; lng: number; transport_mode: string | null; t?: number }> = [];
 	let offset = 0;
 	while (true) {
 		const { data, error } = await db
 			.from('tracker_data')
-			.select('location, transport_mode')
+			.select('location, transport_mode, recorded_at')
 			.eq('user_id', trip.user_id)
 			.gte('recorded_at', `${sd}T00:00:00Z`)
 			.lte('recorded_at', `${ed}T23:59:59Z`)
@@ -137,7 +143,8 @@ async function loadTripPoints(
 		const batch = (data as any[]) ?? [];
 		for (const row of batch) {
 			const loc = parseLocation(row.location);
-			if (loc) all.push({ ...loc, transport_mode: row.transport_mode ?? null });
+			const t = row.recorded_at ? new Date(row.recorded_at).getTime() : undefined;
+			if (loc) all.push({ ...loc, transport_mode: row.transport_mode ?? null, t });
 		}
 		if (batch.length < TRACKER_PAGE) break;
 		offset += TRACKER_PAGE;
@@ -164,30 +171,57 @@ export async function generateTripRoute(db: FluxbaseClient, trip: TripForRoute):
 		if (runs.length === 0) return 'skipped-no-points';
 
 		// Snap each movement run with the costing that matches its transport
-		// mode; a failed/empty match falls back to that run's raw points.
+		// mode. Rail/air runs and off-road-classified runs (long distance at
+		// rail speed while sitting far from any matched road — almost always
+		// a train) keep their raw geometry: there is no road to snap to, and
+		// relabeling keeps the segment categorized correctly. A failed/empty
+		// match otherwise falls back to that run's raw points.
 		const polylines: LatLng[][] = [];
 		for (const run of runs) {
 			let shape: LatLng[] = [];
-			try {
-				const trace: ValhallaTracePoint[] = run.points.map((p) => ({ lat: p.lat, lon: p.lng }));
-				const result = await traceAttributes(trace, costingForRunMode(run.mode), db);
-				shape = result.shape.map((s) => ({ lat: s.lat, lng: s.lon }));
-			} catch (err) {
-				console.warn(
-					`[trip-route] Valhalla match failed for a ${run.mode ?? 'unknown'} run of trip ${trip.id}, using raw points:`,
-					err instanceof Error ? err.message : err
-				);
+			let matched = false;
+			if (run.mode !== 'train' && run.mode !== 'airplane') {
+				try {
+					const trace: ValhallaTracePoint[] = run.points.map((p) => ({ lat: p.lat, lon: p.lng }));
+					const result = await traceAttributes(trace, costingForRunMode(run.mode), db);
+					shape = result.shape.map((s) => ({ lat: s.lat, lng: s.lon }));
+					matched = result.matched && shape.length > 1;
+				} catch (err) {
+					console.warn(
+						`[trip-route] Valhalla match failed for a ${run.mode ?? 'unknown'} run of trip ${trip.id}, using raw points:`,
+						err instanceof Error ? err.message : err
+					);
+				}
 			}
-			if (shape.length < 2) shape = run.points;
-			polylines.push(shape);
+
+			if (shape.length >= 2) {
+				const kin = runKinematics(run.points);
+				const deviation = meanNearestDistanceMeters(run.points, shape);
+				const offRoad = classifyOffRoadRun(kin, !matched || deviation >= POOR_MATCH_METERS);
+				if (offRoad) {
+					console.log(
+						`[trip-route] Trip ${trip.id}: ${run.mode ?? 'unknown'} run classified as ${offRoad} ` +
+							`(avg ${Math.round(kin!.avgSpeedKmh)} km/h over ${(kin!.distanceMeters / 1000).toFixed(1)} km, ` +
+							`mean road deviation ${Math.round(deviation)} m) — keeping raw geometry`
+					);
+					polylines.push(run.points);
+				} else {
+					polylines.push(shape);
+				}
+			} else {
+				// Failed match (or rail/air run): raw points.
+				polylines.push(run.points);
+			}
 		}
 
 		// Privacy clipping: split every polyline at zone crossings BEFORE
-		// anything is stored — see the header invariants.
-		const clipped: LatLng[][] = [];
-		for (const poly of polylines) {
-			clipped.push(...clipPolylineToZones(poly, zones));
-		}
+		// anything is stored — see the header invariants. Then bridge run
+		// boundaries (end of one run → start of the next) so the stored route
+		// reads as one connected line; bridges that would cross a privacy
+		// zone are skipped, and zone gaps stay open by design.
+		const clippedPerRun = polylines.map((poly) => clipPolylineToZones(poly, zones));
+		const assembled = assembleRouteSegments(clippedPerRun, zones);
+		const clipped = assembled.map((s) => s.points);
 		if (clipped.length === 0) return 'skipped-empty';
 
 		const shape: RouteShape = {

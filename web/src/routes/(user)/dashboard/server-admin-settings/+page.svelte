@@ -156,6 +156,9 @@
 	// Database Maintenance
 	let isRefreshingPlaceVisits = $state(false);
 	let isDetectingTransportModes = $state(false);
+	// Full re-run: re-decode every user's whole window (up to 3 years),
+	// ignoring watermarks. Heavier; used after detection-logic changes.
+	let reprocessTransportModes = $state(false);
 	let isReverseGeocodingAllUsers = $state(false);
 	let isRefreshingActivity = $state(false);
 	let isForceRegeocoding = $state(false);
@@ -1070,9 +1073,12 @@
 			// Runs the scheduled (all-users) transport-mode detector. The job is
 			// incremental per-user (resumes from each user's watermark, or does a
 			// full backfill on first run). Same job the daily 04:00 cron runs.
+			// With "Full re-run" checked it re-decodes every user's whole window
+			// (up to 3 years) — needed after detection-logic changes to relabel
+			// history. Manual point corrections are never overwritten either way.
 			const { error } = await fluxbase.jobs.submit(
 				'scheduled-detect-transport-mode',
-				{},
+				{ reprocess_all: reprocessTransportModes },
 				{
 					namespace: 'wayli',
 					priority: 5
@@ -1080,7 +1086,12 @@
 			);
 			if (error) throw error;
 
-			toast.success(t('serverAdmin.detectTransportModesQueued'));
+			toast.success(
+				reprocessTransportModes
+					? 'Full transport-mode re-run queued (all history, all users)'
+					: t('serverAdmin.detectTransportModesQueued')
+			);
+			reprocessTransportModes = false;
 		} catch (error: any) {
 			console.error('Failed to queue transport-mode detection:', error);
 			toast.error(t('serverAdmin.detectTransportModesFailed'), {
@@ -3759,6 +3770,16 @@
 										<p class="text-muted-foreground mt-0.5 text-xs">
 											{t('serverAdmin.detectTransportModesDescription')}
 										</p>
+										<label class="mt-1.5 flex items-center gap-2">
+											<Switch
+												bind:checked={reprocessTransportModes}
+												label="Full re-run (re-analyze all history)"
+												size="sm"
+											/>
+											<span class="text-muted-foreground text-xs">
+												Full re-run — re-analyze all history (up to 3 years), ignoring watermarks
+											</span>
+										</label>
 									</div>
 									<button
 										onclick={detectTransportModesAllUsers}

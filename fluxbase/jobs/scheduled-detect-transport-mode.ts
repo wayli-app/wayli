@@ -16,6 +16,7 @@
 
 import type { FluxbaseClient, JobUtils } from './types';
 import { decodeAndPersist } from './_shared/services/transport-mode/run-helpers.ts';
+import { detectTransportModes } from './_shared/services/transport-mode/detector.ts';
 
 const USERS_RANGE = 1000;
 
@@ -25,10 +26,14 @@ export async function handler(
 	fluxbaseService: FluxbaseClient,
 	job: JobUtils
 ) {
-	console.log('🌐 Scheduled transport-mode detection for all users');
-	job.reportProgress(0, 'Enumerating users with tracker data...');
-
 	const db = fluxbaseService;
+	// Optional payload: { "reprocess_all": true } forces a full 3-year
+	// re-decode for every user regardless of watermark (admin "full re-run").
+	// The per-user detector-version bump (DETECTOR_VERSION) triggers the same
+	// full window automatically after detection-logic changes.
+	const reprocessAll = (job.getJobContext().payload as any)?.reprocess_all === true;
+	console.log(`🌐 Scheduled transport-mode detection for all users (reprocess_all=${reprocessAll})`);
+	job.reportProgress(0, 'Enumerating users with tracker data...');
 
 	// Distinct users that have tracker_data. We page through tracker_data and
 	// collect unique user_ids (RLS-free service-role read). A dedicated
@@ -67,7 +72,9 @@ export async function handler(
 		const userId = unique[i];
 		job.reportProgress(Math.round((i / unique.length) * 100), `User ${i + 1}/${unique.length}`);
 		try {
-			const points = await decodeAndPersist(db, userId, now);
+			const points = await decodeAndPersist(db, userId, now, detectTransportModes, {
+				reprocessAll
+			});
 			processed++;
 			totalPoints += points;
 		} catch (e) {
