@@ -99,6 +99,7 @@ export const VALHALLA_EVIDENCE_LABELS: Record<string, string> = {
 	valhalla_footway_edge: 'Map-matched onto footpaths (walking confirmed)',
 	valhalla_cycleway_edge: 'Map-matched onto cycleways (cycling confirmed)',
 	valhalla_motorway_edge: 'Map-matched onto high-speed roads (car confirmed)',
+	valhalla_rail_run_context: 'Part of a journey with confirmed rail matching (train)',
 	valhalla_pedestrian_not_rail: 'Rail corridors nearby match as footpaths — not a train',
 	valhalla_offroad_rail:
 		'Road matching failed at train-like speed — traveled off the road network (train)',

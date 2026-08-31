@@ -56,6 +56,10 @@ const RAIL_PROBE_SLICE_POINTS = 10;
  *  nothing without rail-like kinematics. */
 const RAIL_POSITIVE_MIN_MOVING_P50_KMH = 100;
 
+/** Confidence for slices labeled train by run context (no direct clone match
+ *  of their own — station approaches, urban canyons of a confirmed journey). */
+const RAIL_RUN_CONTEXT_CONFIDENCE = 0.85;
+
 /** Map a Stage-1 mode to the Valhalla costing that matches it. */
 function costingForMode(mode: TransportMode): ValhallaCosting {
 	switch (mode) {
@@ -213,14 +217,22 @@ export async function confirmWithValhalla(
 		const railPlausible = probeP90 >= RAIL_PROBE_MIN_P90_KMH && probeP90 <= RAIL_PROBE_MAX_P90_KMH;
 
 		if (railPlausible && !overCap()) {
-			// Each slice is judged on its OWN evidence: slices along a rail
-			// corridor match clones at high share (train), slices through
-			// station areas or streets match footways (not train). Per-slice
-			// judgment keeps corridor-level precision where an aggregate over
-			// the whole run would wash the signal out.
+			// Each slice is judged on its OWN evidence first: slices along a rail
+			// corridor match clones at high share (train), slices through station
+			// areas or streets match footways (not train). Afterwards, a single
+			// definitive slice anchors a run-level extension (below) that recovers
+			// the ambiguous slices of the SAME journey.
+			type SliceVerdict = { idxs: number[]; share: number | null };
+			const sliceVerdicts: SliceVerdict[] = [];
 			const slices = sliceRun(runObs);
 			for (const slice of slices) {
 				if (overCap()) break;
+				const sliceStart = slice[0].timestamp;
+				const sliceEnd = slice[slice.length - 1].timestamp;
+				const sliceIdxs = runIdxs.filter(
+					(i) => observations[i].timestamp >= sliceStart && observations[i].timestamp <= sliceEnd
+				);
+				if (sliceIdxs.length === 0) continue;
 				try {
 					// eslint-disable-next-line no-await-in-loop -- slices are probed sequentially by design (bounded by MAX_SEGMENTS_PER_CALL)
 					const trace = await valhalla.traceAttributes(tracePoints(slice), 'pedestrian');
@@ -236,14 +248,9 @@ export async function confirmWithValhalla(
 						}
 					}
 
-					const sliceStart = slice[0].timestamp;
-					const sliceEnd = slice[slice.length - 1].timestamp;
-					const sliceIdxs = runIdxs.filter(
-						(i) => observations[i].timestamp >= sliceStart && observations[i].timestamp <= sliceEnd
-					);
-					if (sliceIdxs.length === 0) continue;
-
 					const share = sliceLenM > 0 ? sliceCloneM / sliceLenM : 0;
+					sliceVerdicts.push({ idxs: sliceIdxs, share });
+
 					// Positive verdict needs rail-like kinematics too: a car
 					// corridor slice can pick up clones, but a real train's
 					// moving-point median sits at motorway speeds.
@@ -268,14 +275,46 @@ export async function confirmWithValhalla(
 							}
 						}
 						if (flipped > 0) confirmed++;
+						// A rail-confirmed run skips Tier 1 entirely, so street-level
+						// slices get their edge verdict HERE: a walk-to-station or
+						// platform-dwell slice matches footways at walking speed.
+						// modeFromEdges' kinematic gates keep fast slices (and
+						// plain road matches, which are inconclusive) on Stage-1.
+						if (trace.edges.length > 0) {
+							const verdict = modeFromEdges(trace.edges, speedStatsFor(slice) ?? undefined);
+							if (verdict) {
+								confirmed++;
+								if (verdict.mode !== decisions[sliceIdxs[0]].mode) overridden++;
+								apply(sliceIdxs, verdict.mode, verdict.evidence, verdict.confidence);
+							}
+						}
 					}
-					// 0.1 ≤ share ≤ 0.5: ambiguous — Stage-1 kept for these points.
+					// 0.1 ≤ share ≤ 0.5: ambiguous — resolved by the run-level
+					// extension below when the run has a positive anchor slice.
 				} catch (err) {
-					// A failed slice keeps Stage-1 for its points.
+					// A failed probe carries no evidence for or against rail; if
+					// the rest of the run confirms rail, the extension recovers
+					// these points, otherwise Stage-1 stands.
 					console.warn(
 						`[valhalla-confirm] rail probe slice failed (${slice[0].timestamp}):`,
 						err instanceof Error ? err.message : err
 					);
+					sliceVerdicts.push({ idxs: sliceIdxs, share: null });
+				}
+			}
+
+			// ─── Run-level extension ────────────────────────────────────────
+			// One definitive clone match makes the whole run a train journey:
+			// the ambiguous slices (0.1–0.5 share) and failed probes are station
+			// approaches and urban canyons of that journey, not separate car
+			// legs. Slices already resolved keep their verdict — suppressed
+			// street-level slices stay walking/car (drive-to-station, dwells).
+			if (railConfirmed) {
+				for (const { idxs, share } of sliceVerdicts) {
+					if (share !== null && (share < 0.1 || share > 0.5)) continue;
+					confirmed++;
+					if (decisions[idxs[0]].mode !== 'train') overridden++;
+					apply(idxs, 'train', 'valhalla_rail_run_context', RAIL_RUN_CONTEXT_CONFIDENCE);
 				}
 			}
 		}

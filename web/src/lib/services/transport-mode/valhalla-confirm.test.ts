@@ -306,6 +306,201 @@ describe('confirmWithValhalla', () => {
 		expect(result[0].reason).toBe('valhalla_rail_edge');
 	});
 
+	test('run-level extension: ambiguous slices of a rail-confirmed run → train', async () => {
+		// The Jul-26 Berlin→AMS case: the corridor slice matches clones
+		// definitively, but station-approach/urban-canyon slices land in the
+		// ambiguous band (0.1–0.5 share) and kept their Stage-1 "car" label.
+		// One definitive slice makes the whole journey a train; suppressed
+		// slices (0 share) keep their street-level outcome.
+		const n = 30;
+		const observations = Array.from({ length: n }, (_, i) => obs(i, { speed: 120 }));
+		const decisions = observations.map((o, i) => decision(i, 'car', 0.7));
+		const mk = (edges: object[]): ValhallaTraceResult =>
+			({ edges, shape: [], matched: true }) satisfies ValhallaTraceResult;
+		// Slice 0 (pts 0-9): 3 of 10 km on clones → share 0.3 (ambiguous).
+		const ambiguous = mk([
+			{
+				road_class: 'service_other',
+				use: 'path',
+				rail: false,
+				length: 3,
+				names: ['RAILWAY | 4701']
+			},
+			{ road_class: 'residential', use: 'road', rail: false, length: 7, speed: 50 }
+		]);
+		// Slice 1 (pts 10-19): all clone length → share 1.0 (definitive).
+		const clone = mk([
+			{
+				road_class: 'service_other',
+				use: 'path',
+				rail: false,
+				length: 5,
+				names: ['RAILWAY | 4701']
+			},
+			{
+				road_class: 'service_other',
+				use: 'path',
+				rail: false,
+				length: 4,
+				names: ['RAILWAY | 4701']
+			}
+		]);
+		// Slice 2 (pts 20-29): plain road match → share 0 (suppressed).
+		const road = mk([
+			{ road_class: 'residential', use: 'road', rail: false, length: 5, speed: 30 }
+		]);
+		const responses = [ambiguous, clone, road];
+		const mockClient: ValhallaClient = {
+			traceAttributes: vi.fn().mockImplementation(async () => responses.shift())
+		};
+
+		const result = await confirmWithValhalla(observations, decisions, mockClient);
+
+		// Ambiguous slice extended by run context…
+		expect(result.slice(0, 10).every((d) => d.mode === 'train')).toBe(true);
+		expect(result[0].reason).toBe('valhalla_rail_run_context');
+		expect(result[0].confidence).toBe(0.85);
+		// …definitive slice keeps its direct evidence…
+		expect(result.slice(10, 20).every((d) => d.mode === 'train')).toBe(true);
+		expect(result[10].reason).toBe('valhalla_rail_edge');
+		expect(result[10].confidence).toBe(0.95);
+		// …suppressed slice keeps its street-level Stage-1 outcome.
+		expect(result.slice(20).every((d) => d.mode === 'car')).toBe(true);
+		expect(result[20].reason).toBe('speed_in_car_range');
+		// Rail-confirmed run → Tier 1 never fires; exactly one probe per slice.
+		expect(mockClient.traceAttributes).toHaveBeenCalledTimes(3);
+	});
+
+	test('car day (movingP50 77) with ambiguous slices → NO extension without an anchor', async () => {
+		// The Jul-12/18 guard: ambiguous clone share alone proves nothing —
+		// only a definitive slice (share > 0.5 + kinematic floor) anchors an
+		// extension, and this run never produces one.
+		const n = 20;
+		const observations = Array.from({ length: n }, (_, i) => obs(i, { speed: 77 }));
+		const decisions = observations.map((o, i) => decision(i, 'car', 0.7));
+		const ambiguous = {
+			edges: [
+				{
+					road_class: 'service_other',
+					use: 'path',
+					rail: false,
+					length: 3,
+					names: ['RAILWAY | 4701']
+				},
+				{ road_class: 'residential', use: 'road', rail: false, length: 7, speed: 50 }
+			],
+			shape: [],
+			matched: true
+		} satisfies ValhallaTraceResult;
+		const road = {
+			edges: [{ road_class: 'residential', use: 'road', rail: false, length: 5, speed: 30 }],
+			shape: [],
+			matched: true
+		} satisfies ValhallaTraceResult;
+		const responses = [ambiguous, ambiguous, road]; // slice probes + tier-1 auto probe
+		const mockClient: ValhallaClient = {
+			traceAttributes: vi.fn().mockImplementation(async () => responses.shift())
+		};
+
+		const result = await confirmWithValhalla(observations, decisions, mockClient);
+
+		expect(result.every((d) => d.mode === 'car')).toBe(true);
+		expect(result.every((d) => d.reason === 'speed_in_car_range')).toBe(true);
+	});
+
+	test('walk-to-station slice in a rail-confirmed run → walking verdict, not extended', async () => {
+		// A rail-confirmed run skips Tier 1, so the pedestrian-matched street
+		// slices get their edge verdict inside the probe: a walking-speed
+		// footway match is walking (platform dwell, walk to the station) —
+		// even though the rest of the run is a confirmed train.
+		const n = 20;
+		const speeds = [...Array(10).fill(5), ...Array(10).fill(130)];
+		const observations = speeds.map((speed, i) => obs(i, { speed }));
+		const decisions = observations.map((o, i) => decision(i, 'car', 0.6));
+		const footway = {
+			edges: [
+				{ road_class: 'residential', use: 'footway', rail: false, length: 1 },
+				{ road_class: 'service_other', use: 'path', rail: false, length: 1 }
+			],
+			shape: [],
+			matched: true
+		} satisfies ValhallaTraceResult;
+		const clone = {
+			edges: [
+				{
+					road_class: 'service_other',
+					use: 'path',
+					rail: false,
+					length: 5,
+					names: ['RAILWAY | 4701']
+				},
+				{
+					road_class: 'service_other',
+					use: 'path',
+					rail: false,
+					length: 4,
+					names: ['RAILWAY | 4701']
+				}
+			],
+			shape: [],
+			matched: true
+		} satisfies ValhallaTraceResult;
+		const responses = [footway, clone];
+		const mockClient: ValhallaClient = {
+			traceAttributes: vi.fn().mockImplementation(async () => responses.shift())
+		};
+
+		const result = await confirmWithValhalla(observations, decisions, mockClient);
+
+		expect(result.slice(0, 10).every((d) => d.mode === 'walking')).toBe(true);
+		expect(result[0].reason).toBe('valhalla_footway_edge');
+		expect(result.slice(10).every((d) => d.mode === 'train')).toBe(true);
+		expect(result[10].reason).toBe('valhalla_rail_edge');
+	});
+
+	test('failed probe slice in a rail-confirmed run → recovered by the extension', async () => {
+		// A slice whose probe errored carries no evidence either way; when the
+		// rest of the run confirms rail, those points belong to the journey.
+		const n = 20;
+		const observations = Array.from({ length: n }, (_, i) => obs(i, { speed: 120 }));
+		const decisions = observations.map((o, i) => decision(i, 'car', 0.7));
+		const clone = {
+			edges: [
+				{
+					road_class: 'service_other',
+					use: 'path',
+					rail: false,
+					length: 5,
+					names: ['RAILWAY | 4701']
+				},
+				{
+					road_class: 'service_other',
+					use: 'path',
+					rail: false,
+					length: 4,
+					names: ['RAILWAY | 4701']
+				}
+			],
+			shape: [],
+			matched: true
+		} satisfies ValhallaTraceResult;
+		let calls = 0;
+		const mockClient: ValhallaClient = {
+			traceAttributes: vi.fn().mockImplementation(async () => {
+				calls++;
+				return calls === 1 ? Promise.reject(new Error('meili timeout')) : clone;
+			})
+		};
+
+		const result = await confirmWithValhalla(observations, decisions, mockClient);
+
+		expect(result.slice(0, 10).every((d) => d.mode === 'train')).toBe(true);
+		expect(result[0].reason).toBe('valhalla_rail_run_context');
+		expect(result[0].confidence).toBe(0.85);
+		expect(result.slice(10).every((d) => d.mode === 'train')).toBe(true);
+		expect(result[10].reason).toBe('valhalla_rail_edge');
+	});
+
 	test('gated off-road tier: sustained beyond-rail speed → airplane', async () => {
 		// A 500 km run at ~830 km/h average: the gated tier (movingP50 >= 100,
 		// path >= 30 km) positively infers airplane even though the auto match
