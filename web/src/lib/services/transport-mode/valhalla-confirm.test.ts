@@ -608,6 +608,71 @@ describe('confirmWithValhalla', () => {
 		expect(result.every((d) => d.reason === 'valhalla_footway_edge')).toBe(true);
 	});
 
+	test('sparse train with GPS dropout: scattered pedestrian match must not suppress Stage-1 train', async () => {
+		// The Jul-26 Berlin Hbf departure: 4 points 1-5 km apart (distance
+		// triggers), moving ~90-130 km/h westward, then a 56-min GPS gap before
+		// the journey reappears. meili matches 1.2 km of scattered footways for
+		// a 12 km path — that match (and the glitched speed column) is
+		// meaningless; the suppression must not veto the Stage-1 train.
+		const pts = [
+			{ lat: 52.5363, lng: 13.3444, speed: 13 },
+			{ lat: 52.5284, lng: 13.284, speed: 122 },
+			{ lat: 52.5323, lng: 13.2097, speed: 131 },
+			{ lat: 52.535, lng: 13.1959, speed: 57 }
+		];
+		const observations = pts.map((p, i) => obs(i, { ...p, timestamp: i * 125_000 }));
+		const decisions = observations.map((o, i) => decision(i, 'train', 0.8));
+		// Scattered footway match: 1.2 km of edges for a ~12 km path.
+		const scattered = {
+			edges: [
+				{ road_class: 'service_other', use: 'footway', rail: false, length: 0.6 },
+				{ road_class: 'tertiary', use: 'road', rail: false, length: 0.6, speed: 50 }
+			],
+			shape: [],
+			matched: true
+		} satisfies ValhallaTraceResult;
+		const mockClient: ValhallaClient = {
+			traceAttributes: vi.fn().mockResolvedValue(scattered)
+		};
+
+		const result = await confirmWithValhalla(observations, decisions, mockClient);
+
+		// Suppression skipped: the Stage-1 train labels stand untouched.
+		expect(result).toEqual(decisions);
+	});
+
+	test('sparse road drive with a GOOD pedestrian-road match → suppression still applies', async () => {
+		// Same sparsity, but the match follows the path (ratio >= 0.7): a real
+		// sparse road drive. Station-context train labels are still suppressed.
+		const pts = [
+			{ lat: 52.0, lng: 13.0, speed: 110 },
+			{ lat: 52.005, lng: 13.03, speed: 115 },
+			{ lat: 52.01, lng: 13.06, speed: 120 },
+			{ lat: 52.015, lng: 13.09, speed: 112 }
+		];
+		const observations = pts.map((p, i) => obs(i, { ...p, timestamp: i * 125_000 }));
+		const decisions = observations.map((o, i) => decision(i, 'train', 0.8));
+		// ~6.3 km path matched by ~4.6 km of road edges (ratio ≈ 0.73 ≥ 0.7),
+		// with per-interval speeds ~60 km/h — the kinematic clause alone would
+		// NOT trust this match, the coverage ratio must.
+		const wellMatched = {
+			edges: [
+				{ road_class: 'tertiary', use: 'road', rail: false, length: 2.3, speed: 80 },
+				{ road_class: 'tertiary', use: 'road', rail: false, length: 2.3, speed: 80 }
+			],
+			shape: [],
+			matched: true
+		} satisfies ValhallaTraceResult;
+		const mockClient: ValhallaClient = {
+			traceAttributes: vi.fn().mockResolvedValue(wellMatched)
+		};
+
+		const result = await confirmWithValhalla(observations, decisions, mockClient);
+
+		expect(result.every((d) => d.mode === 'car')).toBe(true);
+		expect(result.every((d) => d.reason === 'valhalla_pedestrian_not_rail')).toBe(true);
+	});
+
 	test('gated off-road tier: sustained beyond-rail speed → airplane', async () => {
 		// A 500 km run at ~830 km/h average: the gated tier (movingP50 >= 100,
 		// path >= 30 km) positively infers airplane even though the auto match

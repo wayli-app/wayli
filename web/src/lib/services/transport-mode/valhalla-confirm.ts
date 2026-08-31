@@ -11,7 +11,9 @@ import type {
 } from '../external/valhalla.service';
 import {
 	modeFromEdges,
+	OFFROAD_TRAIN_MIN_KMH,
 	offRoadClassification,
+	POOR_MATCH_LENGTH_RATIO,
 	railCloneVerdict,
 	type RunSpeedStats
 } from './valhalla-mapping';
@@ -75,6 +77,20 @@ function isSparseSlice(slice: ModeObservation[]): boolean {
 	if (intervals.length === 0) return false;
 	intervals.sort((a, b) => a - b);
 	return intervals[Math.floor(intervals.length / 2)] > SPARSE_SLICE_MEDIAN_INTERVAL_MS;
+}
+
+/** Median per-interval speed (haversine distance / elapsed time) in km/h — the
+ *  kinematic truth for sparse slices, whose speed column is garbage. */
+function intervalMedianKmh(slice: ModeObservation[]): number {
+	const speeds: number[] = [];
+	for (let i = 1; i < slice.length; i++) {
+		const dt = (slice[i].timestamp - slice[i - 1].timestamp) / 1000;
+		if (dt <= 0) continue;
+		speeds.push((haversineMeters(slice[i - 1], slice[i]) / dt) * 3.6);
+	}
+	if (speeds.length === 0) return 0;
+	speeds.sort((a, b) => a - b);
+	return speeds[Math.floor(speeds.length / 2)];
 }
 
 /** Map a Stage-1 mode to the Valhalla costing that matches it. */
@@ -239,7 +255,7 @@ export async function confirmWithValhalla(
 			// areas or streets match footways (not train). Afterwards, a single
 			// definitive slice anchors a run-level extension (below) that recovers
 			// the ambiguous slices of the SAME journey.
-			type SliceVerdict = { idxs: number[]; share: number | null };
+			type SliceVerdict = { idxs: number[]; share: number | null; sparse: boolean };
 			const sliceVerdicts: SliceVerdict[] = [];
 			const slices = sliceRun(runObs);
 			for (const slice of slices) {
@@ -250,6 +266,7 @@ export async function confirmWithValhalla(
 					(i) => observations[i].timestamp >= sliceStart && observations[i].timestamp <= sliceEnd
 				);
 				if (sliceIdxs.length === 0) continue;
+				const sparse = isSparseSlice(slice);
 				try {
 					// eslint-disable-next-line no-await-in-loop -- slices are probed sequentially by design (bounded by MAX_SEGMENTS_PER_CALL)
 					const trace = await valhalla.traceAttributes(tracePoints(slice), 'pedestrian');
@@ -266,7 +283,7 @@ export async function confirmWithValhalla(
 					}
 
 					const share = sliceLenM > 0 ? sliceCloneM / sliceLenM : 0;
-					sliceVerdicts.push({ idxs: sliceIdxs, share });
+					sliceVerdicts.push({ idxs: sliceIdxs, share, sparse });
 
 					// Positive verdict needs rail-like kinematics too: a car
 					// corridor slice can pick up clones, but a real train's
@@ -277,35 +294,51 @@ export async function confirmWithValhalla(
 						if (decisions[runIdxs[0]].mode !== 'train') overridden++;
 						apply(sliceIdxs, 'train', 'valhalla_rail_edge', 0.95);
 					} else if (share < 0.1) {
-						// Followed the pedestrian network, not rails: suppress
-						// station-context train labels (cars passing stations).
+						// Followed the pedestrian network, not rails — UNLESS the
+						// match itself is untrustworthy. On a sparse slice (GPS
+						// dropout between distance triggers — common on trains) a
+						// pedestrian match covering a small fraction of the path is
+						// meaningless: meili cannot follow a train through scattered
+						// fixes. The speed column is equally untrustworthy there
+						// (glitch spikes), so sparse kinematics come from the
+						// per-interval path/duration speeds.
+						const sliceStats = speedStatsFor(slice);
+						const matchTrusted =
+							!sparse ||
+							intervalMedianKmh(slice) < OFFROAD_TRAIN_MIN_KMH ||
+							(sliceStats != null &&
+								sliceStats.pathMeters > 0 &&
+								sliceLenM / sliceStats.pathMeters >= POOR_MATCH_LENGTH_RATIO);
+						// Trusted matches suppress station-context train labels
+						// (cars passing stations at street level).
 						let flipped = 0;
-						for (const i of sliceIdxs) {
-							if (result[i].mode === 'train') {
-								result[i] = {
-									...result[i],
-									mode: 'car',
-									reason: 'valhalla_pedestrian_not_rail',
-									confidence: 0.6
-								};
-								flipped++;
+						if (matchTrusted) {
+							for (const i of sliceIdxs) {
+								if (result[i].mode === 'train') {
+									result[i] = {
+										...result[i],
+										mode: 'car',
+										reason: 'valhalla_pedestrian_not_rail',
+										confidence: 0.6
+									};
+									flipped++;
+								}
 							}
+							if (flipped > 0) confirmed++;
 						}
-						if (flipped > 0) confirmed++;
 						// A rail-confirmed run skips Tier 1 entirely, so street-level
 						// slices get their edge verdict HERE: a walk-to-station or
 						// platform-dwell slice matches footways at walking speed.
 						// modeFromEdges' kinematic gates keep fast slices (and
 						// plain road matches, which are inconclusive) on Stage-1.
 						if (trace.edges.length > 0) {
-							const stats = speedStatsFor(slice);
-							if (stats && stats.avgKmh != null && isSparseSlice(slice)) {
+							if (sliceStats && sliceStats.avgKmh != null && isSparseSlice(slice)) {
 								// Sparse (distance-trigger) slices carry haversine
 								// glitch speeds — a real walk shows 100+ km/h spikes —
 								// so the gates use the path/duration average instead.
-								stats.p90Kmh = Math.min(stats.p90Kmh, stats.avgKmh);
+								sliceStats.p90Kmh = Math.min(sliceStats.p90Kmh, sliceStats.avgKmh);
 							}
-							const verdict = modeFromEdges(trace.edges, stats ?? undefined);
+							const verdict = modeFromEdges(trace.edges, sliceStats ?? undefined);
 							if (verdict) {
 								confirmed++;
 								if (verdict.mode !== decisions[sliceIdxs[0]].mode) overridden++;
@@ -323,7 +356,7 @@ export async function confirmWithValhalla(
 						`[valhalla-confirm] rail probe slice failed (${slice[0].timestamp}):`,
 						err instanceof Error ? err.message : err
 					);
-					sliceVerdicts.push({ idxs: sliceIdxs, share: null });
+					sliceVerdicts.push({ idxs: sliceIdxs, share: null, sparse });
 				}
 			}
 
@@ -336,9 +369,12 @@ export async function confirmWithValhalla(
 			// at rail speed on a "pedestrian" match is a canyon artifact, not
 			// a car, and is recovered here too.
 			if (railConfirmed) {
-				for (const { idxs, share } of sliceVerdicts) {
+				for (const { idxs, share, sparse } of sliceVerdicts) {
 					if (share !== null && share > 0.5) continue; // already train @0.95
 					if (share !== null && share < 0.1) {
+						// Sparse slices' speed columns are untrustworthy — only a
+						// dense pedestrian match carries the canyon-artifact signal.
+						if (sparse) continue;
 						const fastIdxs = idxs.filter(
 							(i) => (observations[i].speed ?? 0) >= RAIL_POSITIVE_MIN_MOVING_P50_KMH
 						);
