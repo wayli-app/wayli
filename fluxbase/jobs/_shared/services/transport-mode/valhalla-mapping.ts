@@ -1,8 +1,8 @@
 // /Users/bart/Dev/wayli/fluxbase/jobs/_shared/services/transport-mode/valhalla-mapping.ts
 // Mirrors web/src/lib/services/transport-mode/valhalla-mapping.ts. Update both together.
 //
-import type { ValhallaEdge } from '../external/valhalla.service';
-import type { TransportMode } from './states';
+import type { ValhallaEdge } from '../external/valhalla.service.ts';
+import type { TransportMode } from './states.ts';
 import { haversineMeters, meanNearestDistanceMeters } from '../trip-route/trip-route-geometry.ts';
 
 export interface ValhallaModeVerdict {

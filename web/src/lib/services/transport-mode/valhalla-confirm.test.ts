@@ -41,7 +41,7 @@ function segment(
 
 describe('confirmWithValhalla', () => {
 	test('car segment matched to rail edges → overridden to train', async () => {
-		const { observations, decisions } = segment(10, 'car');
+		const { observations, decisions } = segment(10, 'car', 0.8, { speed: 140 });
 		const mockClient: ValhallaClient = {
 			traceAttributes: vi.fn().mockResolvedValue({
 				edges: [
@@ -94,7 +94,8 @@ describe('confirmWithValhalla', () => {
 
 		const result = await confirmWithValhalla(observations, decisions, mockClient);
 
-		// 2 calls: rail-clone probe (pedestrian) + auto probe (fast run).
+		// 2 calls: the rail-clone probe slice (pedestrian; footway mock has no
+		// clone names) + the per-segment auto probe (fast run).
 		expect(mockClient.traceAttributes).toHaveBeenCalledTimes(2);
 		expect(mockClient.traceAttributes).toHaveBeenNthCalledWith(1, expect.anything(), 'pedestrian');
 		expect(mockClient.traceAttributes).toHaveBeenNthCalledWith(2, expect.anything(), 'auto');
@@ -107,7 +108,7 @@ describe('confirmWithValhalla', () => {
 		// Tilesets built with rail cloning expose rail lines as pedestrian
 		// paths named "RAILWAY | …". A rail-speed run whose pedestrian match
 		// lands on those paths is a train — period. No auto probing follows.
-		const { observations, decisions } = segment(10, 'car');
+		const { observations, decisions } = segment(10, 'car', 0.8, { speed: 140 });
 		const railNames = {
 			edges: [
 				{
@@ -148,9 +149,9 @@ describe('confirmWithValhalla', () => {
 		// p90 < 60). The RUN however is rail-plausible (p90 55) and its
 		// pedestrian match lands on RAILWAY | clones -> the whole run is
 		// train, including the fragments the gate would have skipped.
-		const speeds = [15, 18, 45, 55, 30, 40];
+		const speeds = [95, 105, 112, 108, 100, 115];
 		const observations = speeds.map((speed, i) =>
-			obs(i, { timestamp: i * 360_000, speed, lat: 52.39 + i * 0.008 })
+			obs(i, { timestamp: i * 360_000, speed, lat: 52.39 + i * 0.05 })
 		);
 		const decisions = observations.map((o, i) => decision(i, 'walking', 0.9));
 		const mockClient: ValhallaClient = {
@@ -190,7 +191,7 @@ describe('confirmWithValhalla', () => {
 		// The whole-run p90 is dominated by dwell only if dwell is >10% of
 		// points — here dwell is 50%, so the probe must measure MOVING points
 		// (p90 ~55) and still fire.
-		const speeds = [1, 55, 2, 48, 1, 52, 2, 45, 1, 50];
+		const speeds = [1, 105, 2, 110, 1, 108, 2, 112, 1, 115];
 		const observations = speeds.map((speed, i) =>
 			obs(i, { timestamp: i * 300_000, speed, lat: 52.39 + i * 0.008 })
 		);
@@ -217,15 +218,11 @@ describe('confirmWithValhalla', () => {
 		expect(result[0].reason).toBe('valhalla_rail_edge');
 	});
 
-	test('off-road rule: poor auto match at rail speed → train', async () => {
-		// Intercity-train shape (calibrated on the Jul 24/26 traces): ~50 km of
-		// travel over 36 min (~83 km/h avg), matched onto 1 km of slow local
-		// roads. The road hypothesis fails → train.
-		const n = 10;
-		const observations = Array.from({ length: n }, (_, i) =>
-			obs(i, { timestamp: i * 240_000, speed: 130, lat: 52 + i * 0.05 })
-		);
-		const decisions = observations.map((o, i) => decision(i, 'car', 0.63));
+	test('poor auto match at rail speed keeps Stage-1 (off-road inference removed)', async () => {
+		// Rural car traces with GPS drift fail matching just like trains do,
+		// so "unmatched" is not train evidence — the inference produced false
+		// trains on rural car days (Jul 12/18). Stage-1 result is kept.
+		const { observations, decisions } = segment(10, 'car', 0.7, { speed: 130 });
 		const mockClient: ValhallaClient = {
 			traceAttributes: vi.fn().mockResolvedValue({
 				edges: [
@@ -239,14 +236,13 @@ describe('confirmWithValhalla', () => {
 
 		const result = await confirmWithValhalla(observations, decisions, mockClient);
 
-		expect(result.every((d) => d.mode === 'train')).toBe(true);
-		expect(result[0].reason).toBe('valhalla_offroad_rail');
-		expect(result[0].confidence).toBe(0.85);
+		expect(result.every((d) => d.mode === 'car')).toBe(true);
+		expect(result[0].reason).toBe('speed_in_car_range');
 	});
 
-	test('off-road rule: plausible road match keeps car verdict', async () => {
+	test('plausible road match keeps car verdict', async () => {
 		// A real car drive: matched length ≈ path length, edges as fast as the
-		// observed speeds → motorway verdict stands, off-road rule stays out.
+		// observed speeds → the motorway edge verdict stands.
 		const n = 10;
 		const observations = Array.from({ length: n }, (_, i) =>
 			obs(i, { timestamp: i * 240_000, speed: 120, lat: 52 + i * 0.045 })
@@ -270,21 +266,32 @@ describe('confirmWithValhalla', () => {
 		expect(result[0].reason).toBe('valhalla_motorway_edge');
 	});
 
-	test('off-road rule: fragmented sparse journey merged across gaps → train', async () => {
-		// The Jul-24 shape: a sparse tracker (~6 min between fixes) shatters the
-		// ride into 2-point fragments below the 5-min detector gap. Each fragment
-		// is too short to judge, but merged across the 30-min run window the ride
-		// is one 27 km, ~55 km/h off-road journey → train for every point.
-		const n = 6;
-		const observations = Array.from({ length: n }, (_, i) =>
-			obs(i, { timestamp: i * 360_000, speed: 110, lat: 52 + i * 0.05 })
+	test('fragmented sparse journey: sliced rail probe on clones → train', async () => {
+		// A sparse tracker (~6 min between fixes) shatters the ride into
+		// fragments below the 5-min detector gap. The run merges them; the
+		// sliced rail probe finds clone paths along the corridor → train.
+		const speeds = [110, 105, 112, 108, 100, 115];
+		const observations = speeds.map((speed, i) =>
+			obs(i, { timestamp: i * 360_000, speed, lat: 52 + i * 0.05 })
 		);
 		const decisions = observations.map((o, i) => decision(i, 'car', 0.7));
 		const mockClient: ValhallaClient = {
 			traceAttributes: vi.fn().mockResolvedValue({
 				edges: [
-					{ road_class: 'unclassified', use: 'road', rail: false, length: 0.5, speed: 50 },
-					{ road_class: 'residential', use: 'road', rail: false, length: 0.5, speed: 30 }
+					{
+						road_class: 'service_other',
+						use: 'path',
+						rail: false,
+						length: 5,
+						names: ['RAILWAY | 4701']
+					},
+					{
+						road_class: 'service_other',
+						use: 'path',
+						rail: false,
+						length: 4,
+						names: ['RAILWAY | 4701']
+					}
 				],
 				shape: [],
 				matched: true
@@ -293,14 +300,16 @@ describe('confirmWithValhalla', () => {
 
 		const result = await confirmWithValhalla(observations, decisions, mockClient);
 
-		// Fragments are probed individually; the union off-road check classifies
-		// the whole journey.
-		expect(mockClient.traceAttributes.mock.calls.length).toBeGreaterThan(0);
+		// One slice for the 6-point run; clone names → definitive train.
+		expect(mockClient.traceAttributes).toHaveBeenCalledTimes(1);
 		expect(result.every((d) => d.mode === 'train')).toBe(true);
-		expect(result[0].reason).toBe('valhalla_offroad_rail');
+		expect(result[0].reason).toBe('valhalla_rail_edge');
 	});
 
-	test('off-road rule: sustained beyond-rail speed → airplane', async () => {
+	test('gated off-road tier: sustained beyond-rail speed → airplane', async () => {
+		// A 500 km run at ~830 km/h average: the gated tier (movingP50 >= 100,
+		// path >= 30 km) positively infers airplane even though the auto match
+		// itself is meaningless at that speed.
 		const n = 10;
 		const observations = Array.from({ length: n }, (_, i) =>
 			obs(i, { timestamp: i * 240_000, speed: 800, lat: 52 + i * 0.5 })
@@ -429,7 +438,7 @@ describe('confirmWithValhalla', () => {
 		};
 
 		await confirmWithValhalla(observations, decisions, mockClient);
-		// rail-clone probe + per-segment probe
+		// rail-clone probe slice + per-segment probe
 		expect(mockClient.traceAttributes).toHaveBeenCalledTimes(2);
 	});
 

@@ -1,5 +1,5 @@
-// web/src/lib/services/transport-mode/valhalla-mapping.ts
-// Mirrors fluxbase/jobs/_shared/services/transport-mode/valhalla-mapping.ts. Update both together.
+// /Users/bart/Dev/wayli/fluxbase/jobs/_shared/services/transport-mode/valhalla-mapping.ts
+// Mirrors web/src/lib/services/transport-mode/valhalla-mapping.ts. Update both together.
 //
 import type { ValhallaEdge } from '../external/valhalla.service';
 import type { TransportMode } from './states';

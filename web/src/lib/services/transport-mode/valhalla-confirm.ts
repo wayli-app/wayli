@@ -15,6 +15,7 @@ import {
 	railCloneVerdict,
 	type RunSpeedStats
 } from './valhalla-mapping';
+import { meanNearestDistanceMeters } from '../trip-route/trip-route-geometry';
 import { haversineMeters } from '../trip-route/trip-route-geometry';
 
 /** Injectable Valhalla client (for tests). */
@@ -37,15 +38,23 @@ const FAST_SEGMENT_P90_KMH = 60;
 /** Observed p90 speed (km/h) at or above which matching always uses `auto`. */
 const AUTO_COSTING_P90_KMH = 40;
 
-/** Rail-clone probe window (km/h p90): fast enough to be rail, slow enough to be real. */
-const RAIL_PROBE_MIN_P90_KMH = 25;
-const RAIL_PROBE_MAX_P90_KMH = 250;
-
-/** Max segments to send per job batch (bounds Valhalla load + job duration). */
+/** Max probing API calls per job batch (bounds Valhalla load + duration). */
 const MAX_SEGMENTS_PER_CALL = 150;
 
 /** Max gap (ms) between consecutive segments still treated as one journey. */
 const RUN_MERGE_GAP_MS = 30 * 60 * 1000;
+
+/** Rail-clone probe window (km/h, p90 of MOVING points). */
+const RAIL_PROBE_MIN_P90_KMH = 25;
+const RAIL_PROBE_MAX_P90_KMH = 250;
+
+/** Max points per rail-clone probe slice (bounds meili per-request work). */
+const RAIL_PROBE_SLICE_POINTS = 10;
+
+/** A positive rail verdict requires the run's moving-point median at or
+ *  above this speed — clones make rails matchable, so a match alone proves
+ *  nothing without rail-like kinematics. */
+const RAIL_POSITIVE_MIN_MOVING_P50_KMH = 100;
 
 /** Map a Stage-1 mode to the Valhalla costing that matches it. */
 function costingForMode(mode: TransportMode): ValhallaCosting {
@@ -98,6 +107,27 @@ function tracePoints(observations: ModeObservation[]): ValhallaTracePoint[] {
 	return observations.map((o) => ({ lat: o.lat, lon: o.lng, timestamp: o.timestamp }));
 }
 
+/** Split a run into probe slices of ≤ RAIL_PROBE_SLICE_POINTS points (≥ 2 each). */
+function sliceRun(observations: ModeObservation[]): ModeObservation[][] {
+	const slices: ModeObservation[][] = [];
+	let cur: ModeObservation[] = [];
+	for (const o of observations) {
+		cur.push(o);
+		if (cur.length >= RAIL_PROBE_SLICE_POINTS) {
+			slices.push(cur);
+			cur = [];
+		}
+	}
+	if (cur.length > 0) {
+		if (cur.length < 2 && slices.length > 0) {
+			slices[slices.length - 1].push(...cur); // don't leave a 1-point slice
+		} else {
+			slices.push(cur);
+		}
+	}
+	return slices;
+}
+
 /**
  * Send uncertain segments to Valhalla and merge the confirmed modes back into
  * the decisions. Everything that isn't overridden passes through untouched.
@@ -119,8 +149,7 @@ export async function confirmWithValhalla(
 
 	const segmentIdxGroups = segmentByGaps(observations, SEGMENT_GAP_MS);
 
-	// Segments worth probing (per the gate above).
-	const candidateSegments: number[][] = [];
+	// Per-segment candidate gate: which fragments get individual auto probes.
 	const isCandidate = (idxs: number[]): boolean => {
 		const first = decisions[idxs[0]];
 		const p90 = p90Speed(idxs.map((i) => observations[i]));
@@ -130,14 +159,9 @@ export async function confirmWithValhalla(
 			p90 >= FAST_SEGMENT_P90_KMH
 		);
 	};
-	for (const idxs of segmentIdxGroups) {
-		if (isCandidate(idxs)) candidateSegments.push(idxs);
-	}
 
-	// Merge consecutive segments into runs (see header). Runs are built from
-	// ALL segments — not just candidates: a sparse slow window (train crawling
-	// through a station) has fragments that fail the candidate gate, but the
-	// rail-clone probe evaluates the whole run and deserves those points.
+	// Merge consecutive segments into runs (30-min gap): a journey's fragments
+	// — including sparse slow ones — are evaluated together by the rail probe.
 	const runs: number[][] = [];
 	for (const idxs of segmentIdxGroups) {
 		const run = runs[runs.length - 1];
@@ -172,144 +196,174 @@ export async function confirmWithValhalla(
 	for (const runIdxs of runs) {
 		const runObs = runIdxs.map((i) => observations[i]);
 		if (runObs.length < 2) continue; // a single point cannot be matched
-		// Fast runs always use auto: pedestrian/bicycle matching of a fast trace
-		// snaps to footways/cycleways and yields impossible verdicts.
 		const runP90 = p90Speed(runObs);
-		const runCosting: ValhallaCosting =
-			runP90 >= AUTO_COSTING_P90_KMH ? 'auto' : costingForMode(decisions[runIdxs[0]].mode);
+		const movingSpeeds = runObs
+			.map((o) => o.speed)
+			.filter((s): s is number => typeof s === 'number' && s >= 5)
+			.toSorted((a, b) => a - b);
+		const runMovingP50 =
+			movingSpeeds.length > 0 ? movingSpeeds[Math.floor(movingSpeeds.length / 2)] : 0;
+		let railConfirmed = false;
 
-		// 0. Rail-clone probe: for rail-plausible runs, a pedestrian match that
-		//    lands on "RAILWAY | …" clone paths is DEFINITIVE train evidence —
-		//    it fires even when the road match looks plausible (train running
-		//    parallel to a trunk road). Definitive → skip all other probing.
-		//    Rail-plausibility is measured over MOVING points only: a train's
-		//    station dwells (walking-speed points) must not drag the run's
-		//    speed profile below the probe window (the Jul-7 urban case).
+		// ─── Tier 0: rail-clone probe ────────────────────────────────────────
+		// Rail-plausible = the MOVING points' p90 sits in the rail window.
+		// Station dwells (walking-speed points) must not hide a rail run.
 		const movingObs = runObs.filter((o) => (o.speed ?? 0) >= 5);
 		const probeP90 = movingObs.length >= 2 ? p90Speed(movingObs) : runP90;
-		if (probeP90 >= RAIL_PROBE_MIN_P90_KMH && probeP90 <= RAIL_PROBE_MAX_P90_KMH && !overCap()) {
-			try {
-				// eslint-disable-next-line no-await-in-loop -- one bounded probe per run
-				const railTrace = await valhalla.traceAttributes(tracePoints(runObs), 'pedestrian');
-				apiCalls++;
-				const railVerdict = railCloneVerdict(railTrace.edges);
-				if (railVerdict) {
-					confirmed++;
-					if (railVerdict.mode !== decisions[runIdxs[0]].mode) overridden++;
-					apply(runIdxs, railVerdict.mode, railVerdict.evidence, railVerdict.confidence);
-					continue;
-				}
-			} catch (err) {
-				// Non-fatal — fall through to the regular probing below.
-				console.warn(
-					`[valhalla-confirm] rail-clone probe failed for run (${runObs[0].timestamp}):`,
-					err instanceof Error ? err.message : err
-				);
-			}
-		}
+		const railPlausible = probeP90 >= RAIL_PROBE_MIN_P90_KMH && probeP90 <= RAIL_PROBE_MAX_P90_KMH;
 
-		// 1. Per-segment probing + sanity-gated edge verdicts. Segments outside
-		//    the confirm gate are still matched here when they sit inside a run —
-		//    their shape/edges feed the union off-road check below.
-		interface Probed {
-			shape: Array<{ lat: number; lng: number }>;
-			edges: ValhallaTraceResult['edges'];
-		}
-		const probed: Probed[] = [];
-		for (const idxs of segmentIdxGroups) {
-			// Only candidate segments get individual probes (cost control) —
-			// non-candidate points in the run are covered by the rail probe
-			// above or keep their Stage-1 result.
-			if (idxs.length < 2 || !isCandidate(idxs) || !idxs.some((i) => runIdxs.includes(i))) continue;
-			if (overCap()) break;
-			const segmentObs = idxs.map((i) => observations[i]);
-			const segP90 = p90Speed(segmentObs);
-			const segCosting: ValhallaCosting =
-				segP90 >= AUTO_COSTING_P90_KMH ? 'auto' : costingForMode(decisions[idxs[0]].mode);
-			try {
-				// eslint-disable-next-line no-await-in-loop -- segments are matched sequentially by design (bounded by MAX_SEGMENTS_PER_CALL)
-				const trace = await valhalla.traceAttributes(tracePoints(segmentObs), segCosting);
-				apiCalls++;
-				probed.push({
-					shape: trace.shape.map((s) => ({ lat: s.lat, lng: s.lon })),
-					edges: trace.edges
-				});
-
-				const segStats = speedStatsFor(segmentObs);
-				const verdict =
-					trace.edges.length > 0 ? modeFromEdges(trace.edges, segStats ?? undefined) : null;
-				// Per-segment off-road: a single segment can already be a complete
-				// train leg (poor match, rail-like speed, long enough on its own).
-				const segOffRoad =
-					segCosting === 'auto' && segStats
-						? offRoadClassification({
-								raw: segmentObs,
-								shape: trace.shape.map((s) => ({ lat: s.lat, lng: s.lon })),
-								edges: trace.edges,
-								speedsKmh: segmentObs
-									.map((o) => o.speed)
-									.filter((s): s is number => typeof s === 'number'),
-								durationSec: segStats.durationSec
-							})
-						: null;
-				const segFinal = segOffRoad ?? verdict;
-				if (segFinal) {
-					confirmed++;
-					if (segFinal.mode !== decisions[idxs[0]].mode) overridden++;
-					apply(idxs, segFinal.mode, segFinal.evidence, segFinal.confidence);
-				}
-			} catch (err) {
-				// Non-fatal: log and keep Stage-1 for this segment.
-				console.warn(
-					`[valhalla-confirm] trace_attributes failed for segment (${segmentObs[0].timestamp}):`,
-					err instanceof Error ? err.message : err
-				);
-			}
-		}
-
-		// 2. Off-road rule on the run UNION (auto-costing runs only). Whole-run
-		//    probe when no segment qualified on its own; a failed probe counts
-		//    as unmatched — itself the train signal.
-		if (runCosting === 'auto') {
-			let unionShape: Array<{ lat: number; lng: number }> = [];
-			let unionEdges: ValhallaTraceResult['edges'] = [];
-			let haveProbe = probed.length > 0;
-			if (haveProbe) {
-				for (const p of probed) {
-					unionShape.push(...p.shape);
-					unionEdges.push(...p.edges);
-				}
-			} else if (runObs.length >= 3 && !overCap()) {
+		if (railPlausible && !overCap()) {
+			// Each slice is judged on its OWN evidence: slices along a rail
+			// corridor match clones at high share (train), slices through
+			// station areas or streets match footways (not train). Per-slice
+			// judgment keeps corridor-level precision where an aggregate over
+			// the whole run would wash the signal out.
+			const slices = sliceRun(runObs);
+			for (const slice of slices) {
+				if (overCap()) break;
 				try {
-					// eslint-disable-next-line no-await-in-loop -- one bounded whole-run probe
-					const trace = await valhalla.traceAttributes(tracePoints(runObs), runCosting);
+					// eslint-disable-next-line no-await-in-loop -- slices are probed sequentially by design (bounded by MAX_SEGMENTS_PER_CALL)
+					const trace = await valhalla.traceAttributes(tracePoints(slice), 'pedestrian');
 					apiCalls++;
-					haveProbe = true;
-					unionShape = trace.shape.map((s) => ({ lat: s.lat, lng: s.lon }));
-					unionEdges = trace.edges;
+
+					let sliceLenM = 0;
+					let sliceCloneM = 0;
+					for (const e of trace.edges) {
+						const len = typeof e.length === 'number' && e.length > 0 ? e.length * 1000 : 0;
+						sliceLenM += len;
+						if ((e.names ?? []).some((n) => n.startsWith('RAILWAY | '))) {
+							sliceCloneM += len;
+						}
+					}
+
+					const sliceStart = slice[0].timestamp;
+					const sliceEnd = slice[slice.length - 1].timestamp;
+					const sliceIdxs = runIdxs.filter(
+						(i) => observations[i].timestamp >= sliceStart && observations[i].timestamp <= sliceEnd
+					);
+					if (sliceIdxs.length === 0) continue;
+
+					const share = sliceLenM > 0 ? sliceCloneM / sliceLenM : 0;
+					// Positive verdict needs rail-like kinematics too: a car
+					// corridor slice can pick up clones, but a real train's
+					// moving-point median sits at motorway speeds.
+					if (share > 0.5 && runMovingP50 >= RAIL_POSITIVE_MIN_MOVING_P50_KMH) {
+						confirmed++;
+						railConfirmed = true;
+						if (decisions[runIdxs[0]].mode !== 'train') overridden++;
+						apply(sliceIdxs, 'train', 'valhalla_rail_edge', 0.95);
+					} else if (share < 0.1) {
+						// Followed the pedestrian network, not rails: suppress
+						// station-context train labels (cars passing stations).
+						let flipped = 0;
+						for (const i of sliceIdxs) {
+							if (result[i].mode === 'train') {
+								result[i] = {
+									...result[i],
+									mode: 'car',
+									reason: 'valhalla_pedestrian_not_rail',
+									confidence: 0.6
+								};
+								flipped++;
+							}
+						}
+						if (flipped > 0) confirmed++;
+					}
+					// 0.1 ≤ share ≤ 0.5: ambiguous — Stage-1 kept for these points.
 				} catch (err) {
-					// The run as a whole can't be snapped to roads — unmatched.
-					haveProbe = true;
+					// A failed slice keeps Stage-1 for its points.
 					console.warn(
-						`[valhalla-confirm] whole-run probe failed for run (${runObs[0].timestamp}) — treating as unmatched:`,
+						`[valhalla-confirm] rail probe slice failed (${slice[0].timestamp}):`,
+						err instanceof Error ? err.message : err
+					);
+				}
+			}
+		}
+
+		// Positive clone evidence on the corridor makes the tier-1.5
+		// off-road fallback unnecessary for this run.
+		if (!railConfirmed) {
+			// ─── Tier 1: per-segment auto probes + sanity-gated edge verdicts ───
+			for (const idxs of segmentIdxGroups) {
+				// Only candidate segments get individual probes (cost control) —
+				// non-candidate points keep their Stage-1 result.
+				if (idxs.length < 2 || !isCandidate(idxs) || !idxs.some((i) => runIdxs.includes(i)))
+					continue;
+				if (overCap()) break;
+				const segmentObs = idxs.map((i) => observations[i]);
+				const segP90 = p90Speed(segmentObs);
+				const segCosting: ValhallaCosting =
+					segP90 >= AUTO_COSTING_P90_KMH ? 'auto' : costingForMode(decisions[idxs[0]].mode);
+				try {
+					// eslint-disable-next-line no-await-in-loop -- segments are matched sequentially by design (bounded by MAX_SEGMENTS_PER_CALL)
+					const trace = await valhalla.traceAttributes(tracePoints(segmentObs), segCosting);
+					apiCalls++;
+
+					const segStats = speedStatsFor(segmentObs);
+					const verdict =
+						trace.edges.length > 0 ? modeFromEdges(trace.edges, segStats ?? undefined) : null;
+					if (verdict) {
+						confirmed++;
+						if (verdict.mode !== decisions[idxs[0]].mode) overridden++;
+						apply(idxs, verdict.mode, verdict.evidence, verdict.confidence);
+					}
+				} catch (err) {
+					// Non-fatal: log and keep Stage-1 for this segment.
+					console.warn(
+						`[valhalla-confirm] trace_attributes failed for segment (${segmentObs[0].timestamp}):`,
 						err instanceof Error ? err.message : err
 					);
 				}
 			}
 
-			const runStats = speedStatsFor(runObs);
-			if (haveProbe && runStats) {
-				const offRoad = offRoadClassification({
-					raw: runObs,
-					shape: unionShape,
-					edges: unionEdges,
-					speedsKmh: runObs.map((o) => o.speed).filter((s): s is number => typeof s === 'number'),
-					durationSec: runStats.durationSec
-				});
-				if (offRoad) {
-					confirmed++;
-					if (offRoad.mode !== decisions[runIdxs[0]].mode) overridden++;
-					apply(runIdxs, offRoad.mode, offRoad.evidence, offRoad.confidence);
+			// ─── Tier 1.5: gated off-road inference for sparse long runs ────────
+			// Only for runs the rail probe could not positively identify (and
+			// that are demonstrably FAST long journeys: moving-point median
+			// >= 100 km/h, >= 30 km traveled). Sparse intercity trains have
+			// point gaps that break meili, so their auto matches fail — that
+			// alone is not evidence, but combined with the kinematic floor it
+			// recovers them. Ordinary car days sit at movingP50 ~77 and are
+			// excluded.
+			if (!railConfirmed && runP90 >= AUTO_COSTING_P90_KMH && !overCap()) {
+				const movingSpeeds = runObs
+					.map((o) => o.speed)
+					.filter((s): s is number => typeof s === 'number' && s >= 5)
+					.toSorted((a, b) => a - b);
+				const movingP50 =
+					movingSpeeds.length > 0 ? movingSpeeds[Math.floor(movingSpeeds.length / 2)] : 0;
+				let pathMeters = 0;
+				for (let i = 1; i < runObs.length; i++) {
+					pathMeters += haversineMeters(runObs[i - 1], runObs[i]);
+				}
+				if (movingP50 >= 100 && pathMeters >= 30_000) {
+					try {
+						// eslint-disable-next-line no-await-in-loop -- one bounded probe per run
+						const trace = await valhalla.traceAttributes(tracePoints(runObs), 'auto');
+						apiCalls++;
+						const offRoad = offRoadClassification({
+							raw: runObs,
+							shape: trace.shape.map((s) => ({ lat: s.lat, lng: s.lon })),
+							edges: trace.edges,
+							speedsKmh: runObs
+								.map((o) => o.speed)
+								.filter((s): s is number => typeof s === 'number'),
+							durationSec:
+								runObs.length >= 2
+									? (runObs[runObs.length - 1].timestamp - runObs[0].timestamp) / 1000
+									: null
+						});
+						if (offRoad) {
+							confirmed++;
+							if (offRoad.mode !== decisions[runIdxs[0]].mode) overridden++;
+							apply(runIdxs, offRoad.mode, offRoad.evidence, offRoad.confidence);
+						}
+					} catch (err) {
+						// Non-fatal: probe failures carry no inference.
+						console.warn(
+							`[valhalla-confirm] gated off-road probe failed for run (${runObs[0].timestamp}):`,
+							err instanceof Error ? err.message : err
+						);
+					}
 				}
 			}
 		}
