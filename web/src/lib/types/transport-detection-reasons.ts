@@ -99,9 +99,23 @@ export const VALHALLA_EVIDENCE_LABELS: Record<string, string> = {
 	valhalla_footway_edge: 'Map-matched onto footpaths (walking confirmed)',
 	valhalla_cycleway_edge: 'Map-matched onto cycleways (cycling confirmed)',
 	valhalla_motorway_edge: 'Map-matched onto high-speed roads (car confirmed)',
+	valhalla_pedestrian_not_rail: 'Rail corridors nearby match as footpaths — not a train',
 	valhalla_offroad_rail:
 		'Road matching failed at train-like speed — traveled off the road network (train)',
 	valhalla_offroad_air: 'Sustained speed beyond ground transport (plane)'
+};
+
+// Stage-1 (HMM detector) reason strings — detector.ts reasonFor() writes these
+// lowercase machine identifiers directly to detection_reason.
+export const HMM_REASON_LABELS: Record<string, string> = {
+	speed_below_stationary_threshold: 'Barely moving — stationary or idle',
+	speed_in_walking_range: 'Speed in walking range, likely walking',
+	speed_in_cycling_range: 'Speed in cycling range, likely cycling',
+	speed_in_car_range: 'Speed in car range, likely car',
+	speed_in_high_speed_car_range: 'High speed in car range, likely car',
+	speed_in_airplane_range: 'Speed in airplane range, likely plane',
+	steady_speed_with_rail_context: 'Steady speed near rail context, likely train',
+	hmm_decoded: 'Decoded by the movement model'
 };
 
 // Helper function to get user-friendly label
@@ -111,8 +125,9 @@ export function getTransportDetectionReasonLabel(
 	if (Object.values(TransportDetectionReason).includes(reason as TransportDetectionReason)) {
 		return TRANSPORT_DETECTION_REASON_LABELS[reason as TransportDetectionReason];
 	}
-	if (typeof reason === 'string' && VALHALLA_EVIDENCE_LABELS[reason]) {
-		return VALHALLA_EVIDENCE_LABELS[reason];
+	if (typeof reason === 'string') {
+		if (VALHALLA_EVIDENCE_LABELS[reason]) return VALHALLA_EVIDENCE_LABELS[reason];
+		if (HMM_REASON_LABELS[reason]) return HMM_REASON_LABELS[reason];
 	}
 	// Fallback for legacy string values or unknown reasons
 	return reason as string;

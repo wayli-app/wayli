@@ -412,17 +412,18 @@
 	});
 
 	const sortedPlaces = $derived.by(() => {
-		const sorted = [...filteredPlaces];
 		switch (sortBy) {
 			case 'title':
-				return sorted.sort((a, b) => a.title.localeCompare(b.title));
+				return filteredPlaces.toSorted((a, b) => a.title.localeCompare(b.title));
 			case 'type':
-				return sorted.sort((a, b) => (a.type || '').localeCompare(b.type || ''));
+				return filteredPlaces.toSorted((a, b) => (a.type || '').localeCompare(b.type || ''));
 			case 'rating':
-				return sorted.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+				return filteredPlaces.toSorted((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
 			case 'date':
 			default:
-				return sorted.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+				return filteredPlaces.toSorted((a, b) =>
+					(b.created_at || '').localeCompare(a.created_at || '')
+				);
 		}
 	});
 
