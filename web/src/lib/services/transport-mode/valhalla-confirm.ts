@@ -60,6 +60,23 @@ const RAIL_POSITIVE_MIN_MOVING_P50_KMH = 100;
  *  of their own — station approaches, urban canyons of a confirmed journey). */
 const RAIL_RUN_CONTEXT_CONFIDENCE = 0.85;
 
+/** Median inter-point interval above this marks a slice as sparse — the
+ *  distance-trigger recording regime, whose speed column carries haversine
+ *  glitch spikes unusable for kinematic gating. */
+const SPARSE_SLICE_MEDIAN_INTERVAL_MS = 120_000;
+
+/** True when the slice's points are so far apart that the recorded speeds are
+ *  distance-trigger artifacts rather than GPS Doppler speeds. */
+function isSparseSlice(slice: ModeObservation[]): boolean {
+	const intervals: number[] = [];
+	for (let i = 1; i < slice.length; i++) {
+		intervals.push(slice[i].timestamp - slice[i - 1].timestamp);
+	}
+	if (intervals.length === 0) return false;
+	intervals.sort((a, b) => a - b);
+	return intervals[Math.floor(intervals.length / 2)] > SPARSE_SLICE_MEDIAN_INTERVAL_MS;
+}
+
 /** Map a Stage-1 mode to the Valhalla costing that matches it. */
 function costingForMode(mode: TransportMode): ValhallaCosting {
 	switch (mode) {
@@ -281,7 +298,14 @@ export async function confirmWithValhalla(
 						// modeFromEdges' kinematic gates keep fast slices (and
 						// plain road matches, which are inconclusive) on Stage-1.
 						if (trace.edges.length > 0) {
-							const verdict = modeFromEdges(trace.edges, speedStatsFor(slice) ?? undefined);
+							const stats = speedStatsFor(slice);
+							if (stats && stats.avgKmh != null && isSparseSlice(slice)) {
+								// Sparse (distance-trigger) slices carry haversine
+								// glitch speeds — a real walk shows 100+ km/h spikes —
+								// so the gates use the path/duration average instead.
+								stats.p90Kmh = Math.min(stats.p90Kmh, stats.avgKmh);
+							}
+							const verdict = modeFromEdges(trace.edges, stats ?? undefined);
 							if (verdict) {
 								confirmed++;
 								if (verdict.mode !== decisions[sliceIdxs[0]].mode) overridden++;
@@ -307,11 +331,23 @@ export async function confirmWithValhalla(
 			// One definitive clone match makes the whole run a train journey:
 			// the ambiguous slices (0.1–0.5 share) and failed probes are station
 			// approaches and urban canyons of that journey, not separate car
-			// legs. Slices already resolved keep their verdict — suppressed
-			// street-level slices stay walking/car (drive-to-station, dwells).
+			// legs. Suppressed slices keep their street-level outcome for slow
+			// points (drive-to-station, platform dwells) — but a point moving
+			// at rail speed on a "pedestrian" match is a canyon artifact, not
+			// a car, and is recovered here too.
 			if (railConfirmed) {
 				for (const { idxs, share } of sliceVerdicts) {
-					if (share !== null && (share < 0.1 || share > 0.5)) continue;
+					if (share !== null && share > 0.5) continue; // already train @0.95
+					if (share !== null && share < 0.1) {
+						const fastIdxs = idxs.filter(
+							(i) => (observations[i].speed ?? 0) >= RAIL_POSITIVE_MIN_MOVING_P50_KMH
+						);
+						if (fastIdxs.length === 0) continue;
+						confirmed++;
+						overridden += fastIdxs.filter((i) => decisions[i].mode !== 'train').length;
+						apply(fastIdxs, 'train', 'valhalla_rail_run_context', RAIL_RUN_CONTEXT_CONFIDENCE);
+						continue;
+					}
 					confirmed++;
 					if (decisions[idxs[0]].mode !== 'train') overridden++;
 					apply(idxs, 'train', 'valhalla_rail_run_context', RAIL_RUN_CONTEXT_CONFIDENCE);

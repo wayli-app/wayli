@@ -313,7 +313,9 @@ describe('confirmWithValhalla', () => {
 		// One definitive slice makes the whole journey a train; suppressed
 		// slices (0 share) keep their street-level outcome.
 		const n = 30;
-		const observations = Array.from({ length: n }, (_, i) => obs(i, { speed: 120 }));
+		// Slices 0-1 move at rail speed; slice 2 is street-level (station area).
+		const speeds = [...Array(20).fill(120), ...Array(10).fill(40)];
+		const observations = speeds.map((speed, i) => obs(i, { speed }));
 		const decisions = observations.map((o, i) => decision(i, 'car', 0.7));
 		const mk = (edges: object[]): ValhallaTraceResult =>
 			({ edges, shape: [], matched: true }) satisfies ValhallaTraceResult;
@@ -499,6 +501,111 @@ describe('confirmWithValhalla', () => {
 		expect(result[0].confidence).toBe(0.85);
 		expect(result.slice(10).every((d) => d.mode === 'train')).toBe(true);
 		expect(result[10].reason).toBe('valhalla_rail_edge');
+	});
+
+	test('anchored run recovers rail-speed points from suppressed slices (urban canyon)', async () => {
+		// The Jul-26 148 km/h point: pedestrian-matched OFF the clones while
+		// moving at rail speed inside a confirmed train journey — an urban-
+		// canyon matching artifact, not a street-level vehicle. The extension
+		// recovers only the rail-speed points; slow street-level points stay.
+		const n = 20;
+		const speeds = [...Array(9).fill(40), 148, ...Array(10).fill(130)];
+		const observations = speeds.map((speed, i) => obs(i, { speed }));
+		const decisions = observations.map((o, i) => decision(i, 'car', 0.7));
+		const road = {
+			edges: [{ road_class: 'residential', use: 'road', rail: false, length: 5, speed: 30 }],
+			shape: [],
+			matched: true
+		} satisfies ValhallaTraceResult;
+		const clone = {
+			edges: [
+				{
+					road_class: 'service_other',
+					use: 'path',
+					rail: false,
+					length: 5,
+					names: ['RAILWAY | 4701']
+				},
+				{
+					road_class: 'service_other',
+					use: 'path',
+					rail: false,
+					length: 4,
+					names: ['RAILWAY | 4701']
+				}
+			],
+			shape: [],
+			matched: true
+		} satisfies ValhallaTraceResult;
+		const responses = [road, clone];
+		const mockClient: ValhallaClient = {
+			traceAttributes: vi.fn().mockImplementation(async () => responses.shift())
+		};
+
+		const result = await confirmWithValhalla(observations, decisions, mockClient);
+
+		// Slow street-level points keep Stage-1 car; the 148 km/h point (idx 9)
+		// is recovered as train by run context.
+		expect(result.slice(0, 9).every((d) => d.mode === 'car')).toBe(true);
+		expect(result[9].mode).toBe('train');
+		expect(result[9].reason).toBe('valhalla_rail_run_context');
+		expect(result.slice(10).every((d) => d.mode === 'train')).toBe(true);
+	});
+
+	test('unanchored run: suppressed train labels flip to car at ANY speed (false-positive guard)', async () => {
+		// Station-context false trains (cars passing stations at highway speed)
+		// have no anchored clone slice in their run — suppression must keep
+		// flipping them regardless of speed.
+		const n = 10;
+		const observations = Array.from({ length: n }, (_, i) => obs(i, { speed: 130 }));
+		const decisions = observations.map((o, i) => decision(i, 'train', 0.8));
+		const road = {
+			edges: [{ road_class: 'residential', use: 'road', rail: false, length: 5, speed: 30 }],
+			shape: [],
+			matched: true
+		} satisfies ValhallaTraceResult;
+		const mockClient: ValhallaClient = {
+			traceAttributes: vi.fn().mockResolvedValue(road)
+		};
+
+		const result = await confirmWithValhalla(observations, decisions, mockClient);
+
+		expect(result.every((d) => d.mode === 'car')).toBe(true);
+		expect(result.every((d) => d.reason === 'valhalla_pedestrian_not_rail')).toBe(true);
+	});
+
+	test('sparse walk slice with glitch speeds → walking verdict via robust average', async () => {
+		// The Jul-26 walk-to-station: 5 points ~2 min apart whose speed column
+		// carries distance-trigger spikes (122/131 km/h on a real walk). The
+		// walking gate must use the path/duration average (~5 km/h), not the
+		// glitched p90, for sparse slices.
+		const speeds = [13, 122, 131, 57, 4];
+		// ~150 m per 2-min step → avg ≈ 4.5 km/h (a genuine walk).
+		const observations = speeds.map((speed, i) =>
+			obs(i, {
+				speed,
+				timestamp: i * 125_000,
+				lat: 52.52 + i * 0.00135,
+				lng: 13.37 + i * 0.00135
+			})
+		);
+		const decisions = observations.map((o, i) => decision(i, 'train', 0.8));
+		const footway = {
+			edges: [
+				{ road_class: 'residential', use: 'footway', rail: false, length: 0.15 },
+				{ road_class: 'service_other', use: 'path', rail: false, length: 0.15 }
+			],
+			shape: [],
+			matched: true
+		} satisfies ValhallaTraceResult;
+		const mockClient: ValhallaClient = {
+			traceAttributes: vi.fn().mockResolvedValue(footway)
+		};
+
+		const result = await confirmWithValhalla(observations, decisions, mockClient);
+
+		expect(result.every((d) => d.mode === 'walking')).toBe(true);
+		expect(result.every((d) => d.reason === 'valhalla_footway_edge')).toBe(true);
 	});
 
 	test('gated off-road tier: sustained beyond-rail speed → airplane', async () => {
