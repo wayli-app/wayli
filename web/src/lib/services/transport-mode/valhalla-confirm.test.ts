@@ -185,6 +185,38 @@ describe('confirmWithValhalla', () => {
 		expect(mockClient.traceAttributes).toHaveBeenCalledTimes(1);
 	});
 
+	test('rail-clone probe: station dwell must not hide a rail-plausible run (moving-points gate)', async () => {
+		// Urban train: long dwelling at 1-2 km/h between 45-60 km/h stretches.
+		// The whole-run p90 is dominated by dwell only if dwell is >10% of
+		// points — here dwell is 50%, so the probe must measure MOVING points
+		// (p90 ~55) and still fire.
+		const speeds = [1, 55, 2, 48, 1, 52, 2, 45, 1, 50];
+		const observations = speeds.map((speed, i) =>
+			obs(i, { timestamp: i * 300_000, speed, lat: 52.39 + i * 0.008 })
+		);
+		const decisions = observations.map((o, i) => decision(i, 'walking', 0.9));
+		const mockClient: ValhallaClient = {
+			traceAttributes: vi.fn().mockResolvedValue({
+				edges: [
+					{
+						road_class: 'service_other',
+						use: 'path',
+						rail: false,
+						length: 5,
+						names: ['RAILWAY | 525b']
+					}
+				],
+				shape: [],
+				matched: true
+			} satisfies ValhallaTraceResult)
+		};
+
+		const result = await confirmWithValhalla(observations, decisions, mockClient);
+
+		expect(result.every((d) => d.mode === 'train')).toBe(true);
+		expect(result[0].reason).toBe('valhalla_rail_edge');
+	});
+
 	test('off-road rule: poor auto match at rail speed → train', async () => {
 		// Intercity-train shape (calibrated on the Jul 24/26 traces): ~50 km of
 		// travel over 36 min (~83 km/h avg), matched onto 1 km of slow local

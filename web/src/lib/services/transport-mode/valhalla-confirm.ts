@@ -182,7 +182,12 @@ export async function confirmWithValhalla(
 		//    lands on "RAILWAY | …" clone paths is DEFINITIVE train evidence —
 		//    it fires even when the road match looks plausible (train running
 		//    parallel to a trunk road). Definitive → skip all other probing.
-		if (runP90 >= RAIL_PROBE_MIN_P90_KMH && runP90 <= RAIL_PROBE_MAX_P90_KMH && !overCap()) {
+		//    Rail-plausibility is measured over MOVING points only: a train's
+		//    station dwells (walking-speed points) must not drag the run's
+		//    speed profile below the probe window (the Jul-7 urban case).
+		const movingObs = runObs.filter((o) => (o.speed ?? 0) >= 5);
+		const probeP90 = movingObs.length >= 2 ? p90Speed(movingObs) : runP90;
+		if (probeP90 >= RAIL_PROBE_MIN_P90_KMH && probeP90 <= RAIL_PROBE_MAX_P90_KMH && !overCap()) {
 			try {
 				// eslint-disable-next-line no-await-in-loop -- one bounded probe per run
 				const railTrace = await valhalla.traceAttributes(tracePoints(runObs), 'pedestrian');

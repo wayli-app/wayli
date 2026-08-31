@@ -1,21 +1,20 @@
 // /Users/bart/Dev/wayli/fluxbase/jobs/_shared/services/transport-mode/valhalla-confirm.ts
 // Mirrors web/src/lib/services/transport-mode/valhalla-confirm.ts. Update both together.
 //
-
-import { segmentByGaps, SEGMENT_GAP_MS } from './segmentation.ts';
-import type { ModeObservation, PointModeDecision } from './types.ts';
-import type { TransportMode } from './states.ts';
+import { segmentByGaps, SEGMENT_GAP_MS } from './segmentation.ts.ts';
+import type { ModeObservation, PointModeDecision } from './types.ts.ts';
+import type { TransportMode } from './states.ts.ts';
 import type {
 	ValhallaCosting,
 	ValhallaTracePoint,
 	ValhallaTraceResult
-} from '../external/valhalla.service.ts';
+} from '../external/valhalla.service.ts.ts';
 import {
 	modeFromEdges,
 	offRoadClassification,
 	railCloneVerdict,
 	type RunSpeedStats
-} from './valhalla-mapping.ts';
+} from './valhalla-mapping.ts.ts';
 import { haversineMeters } from '../trip-route/trip-route-geometry.ts';
 
 /** Injectable Valhalla client (for tests). */
@@ -183,7 +182,12 @@ export async function confirmWithValhalla(
 		//    lands on "RAILWAY | …" clone paths is DEFINITIVE train evidence —
 		//    it fires even when the road match looks plausible (train running
 		//    parallel to a trunk road). Definitive → skip all other probing.
-		if (runP90 >= RAIL_PROBE_MIN_P90_KMH && runP90 <= RAIL_PROBE_MAX_P90_KMH && !overCap()) {
+		//    Rail-plausibility is measured over MOVING points only: a train's
+		//    station dwells (walking-speed points) must not drag the run's
+		//    speed profile below the probe window (the Jul-7 urban case).
+		const movingObs = runObs.filter((o) => (o.speed ?? 0) >= 5);
+		const probeP90 = movingObs.length >= 2 ? p90Speed(movingObs) : runP90;
+		if (probeP90 >= RAIL_PROBE_MIN_P90_KMH && probeP90 <= RAIL_PROBE_MAX_P90_KMH && !overCap()) {
 			try {
 				// eslint-disable-next-line no-await-in-loop -- one bounded probe per run
 				const railTrace = await valhalla.traceAttributes(tracePoints(runObs), 'pedestrian');
