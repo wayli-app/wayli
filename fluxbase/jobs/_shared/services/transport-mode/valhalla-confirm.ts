@@ -1,20 +1,20 @@
 // /Users/bart/Dev/wayli/fluxbase/jobs/_shared/services/transport-mode/valhalla-confirm.ts
 // Mirrors web/src/lib/services/transport-mode/valhalla-confirm.ts. Update both together.
 //
-import { segmentByGaps, SEGMENT_GAP_MS } from './segmentation.ts.ts';
-import type { ModeObservation, PointModeDecision } from './types.ts.ts';
-import type { TransportMode } from './states.ts.ts';
+import { segmentByGaps, SEGMENT_GAP_MS } from './segmentation.ts';
+import type { ModeObservation, PointModeDecision } from './types.ts';
+import type { TransportMode } from './states.ts';
 import type {
 	ValhallaCosting,
 	ValhallaTracePoint,
 	ValhallaTraceResult
-} from '../external/valhalla.service.ts.ts';
+} from '../external/valhalla.service.ts';
 import {
 	modeFromEdges,
 	offRoadClassification,
 	railCloneVerdict,
 	type RunSpeedStats
-} from './valhalla-mapping.ts.ts';
+} from './valhalla-mapping.ts';
 import { haversineMeters } from '../trip-route/trip-route-geometry.ts';
 
 /** Injectable Valhalla client (for tests). */
