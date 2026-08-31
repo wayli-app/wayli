@@ -142,6 +142,49 @@ describe('confirmWithValhalla', () => {
 		expect(mockClient.traceAttributes).toHaveBeenCalledWith(expect.anything(), 'pedestrian');
 	});
 
+	test('rail-clone probe covers sparse runs whose fragments fail the candidate gate (Jul-7 case)', async () => {
+		// 3 fragments of 2 pts, 6-min gaps (> 5-min detector gap): every
+		// fragment fails the per-segment candidate gate (walking @0.9,
+		// p90 < 60). The RUN however is rail-plausible (p90 55) and its
+		// pedestrian match lands on RAILWAY | clones -> the whole run is
+		// train, including the fragments the gate would have skipped.
+		const speeds = [15, 18, 45, 55, 30, 40];
+		const observations = speeds.map((speed, i) =>
+			obs(i, { timestamp: i * 360_000, speed, lat: 52.39 + i * 0.008 })
+		);
+		const decisions = observations.map((o, i) => decision(i, 'walking', 0.9));
+		const mockClient: ValhallaClient = {
+			traceAttributes: vi.fn().mockResolvedValue({
+				edges: [
+					{
+						road_class: 'service_other',
+						use: 'path',
+						rail: false,
+						length: 5,
+						names: ['RAILWAY | 525b']
+					},
+					{
+						road_class: 'service_other',
+						use: 'path',
+						rail: false,
+						length: 4,
+						names: ['RAILWAY | 525b']
+					}
+				],
+				shape: [],
+				matched: true
+			} satisfies ValhallaTraceResult)
+		};
+
+		const result = await confirmWithValhalla(observations, decisions, mockClient);
+
+		expect(result.every((d) => d.mode === 'train')).toBe(true);
+		expect(result[0].reason).toBe('valhalla_rail_edge');
+		expect(result[0].confidence).toBe(0.95);
+		// Definitive verdict -> exactly one probe, no per-segment follow-up.
+		expect(mockClient.traceAttributes).toHaveBeenCalledTimes(1);
+	});
+
 	test('off-road rule: poor auto match at rail speed → train', async () => {
 		// Intercity-train shape (calibrated on the Jul 24/26 traces): ~50 km of
 		// travel over 36 min (~83 km/h avg), matched onto 1 km of slow local

@@ -121,19 +121,25 @@ export async function confirmWithValhalla(
 
 	// Segments worth probing (per the gate above).
 	const candidateSegments: number[][] = [];
-	for (const idxs of segmentIdxGroups) {
+	const isCandidate = (idxs: number[]): boolean => {
 		const first = decisions[idxs[0]];
 		const p90 = p90Speed(idxs.map((i) => observations[i]));
-		const needsConfirm =
+		return (
 			AMBIGUOUS_MODES.has(first.mode) ||
 			first.confidence < CONFIDENCE_THRESHOLD ||
-			p90 >= FAST_SEGMENT_P90_KMH;
-		if (needsConfirm) candidateSegments.push(idxs);
+			p90 >= FAST_SEGMENT_P90_KMH
+		);
+	};
+	for (const idxs of segmentIdxGroups) {
+		if (isCandidate(idxs)) candidateSegments.push(idxs);
 	}
 
-	// Merge consecutive candidate segments into runs (see header).
+	// Merge consecutive segments into runs (see header). Runs are built from
+	// ALL segments — not just candidates: a sparse slow window (train crawling
+	// through a station) has fragments that fail the candidate gate, but the
+	// rail-clone probe evaluates the whole run and deserves those points.
 	const runs: number[][] = [];
-	for (const idxs of candidateSegments) {
+	for (const idxs of segmentIdxGroups) {
 		const run = runs[runs.length - 1];
 		if (
 			run &&
@@ -206,7 +212,10 @@ export async function confirmWithValhalla(
 		}
 		const probed: Probed[] = [];
 		for (const idxs of segmentIdxGroups) {
-			if (idxs.length < 2 || !idxs.some((i) => runIdxs.includes(i))) continue;
+			// Only candidate segments get individual probes (cost control) —
+			// non-candidate points in the run are covered by the rail probe
+			// above or keep their Stage-1 result.
+			if (idxs.length < 2 || !isCandidate(idxs) || !idxs.some((i) => runIdxs.includes(i))) continue;
 			if (overCap()) break;
 			const segmentObs = idxs.map((i) => observations[i]);
 			const segP90 = p90Speed(segmentObs);
