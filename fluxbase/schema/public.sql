@@ -393,6 +393,74 @@ CREATE POLICY "Users can update own daily activity" ON tracker_daily_activity FO
 CREATE POLICY "Users can write own daily activity" ON tracker_daily_activity FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
 --
+-- Name: visited_countries; Type: TABLE; Schema: -; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS visited_countries (
+    user_id uuid NOT NULL,
+    country_code varchar(2) NOT NULL,
+    first_visit timestamptz,
+    last_visit timestamptz,
+    visits integer DEFAULT 0,
+    total_stay_hours numeric(12,2) DEFAULT 0,
+    updated_at timestamptz DEFAULT now(),
+    CONSTRAINT visited_countries_pkey PRIMARY KEY (user_id, country_code)
+);
+
+
+COMMENT ON TABLE visited_countries IS 'Cached per-country presence aggregates from tracker_data: countries where the user dwelled at least one continuous hour (24h gap splits stays), so flyovers and transit corridors are excluded. Recomputed wholesale by the refresh-daily-activity job (refresh-visited-countries-sql RPC); the visited-countries RPC reads this for the "Where I''ve been" map instead of aggregating tracker_data live.';
+
+--
+-- Name: idx_visited_countries_user; Type: INDEX; Schema: -; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_visited_countries_user ON visited_countries (user_id);
+
+--
+-- Name: visited_countries; Type: RLS; Schema: -; Owner: -
+--
+
+ALTER TABLE visited_countries ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: Service role has full access to visited countries; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Service role has full access to visited countries" ON visited_countries TO service_role USING (true) WITH CHECK (true);
+
+--
+-- Name: Tenant service full access to visited countries; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Tenant service full access to visited countries" ON visited_countries TO tenant_service USING (true) WITH CHECK (true);
+
+--
+-- Name: Users can read own visited countries; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Users can read own visited countries" ON visited_countries FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+--
+-- Name: Users can write own visited countries; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Users can write own visited countries" ON visited_countries FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+--
+-- Name: Users can delete own visited countries; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Users can delete own visited countries" ON visited_countries FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+--
+-- Name: idx_tracker_data_user_country_time; Type: INDEX; Schema: -; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_tracker_data_user_country_time
+  ON tracker_data (user_id, country_code, recorded_at)
+  WHERE location IS NOT NULL AND country_code IS NOT NULL;
+
+--
 -- Name: tracker_daily_activity_state; Type: TABLE; Schema: -; Owner: -
 --
 

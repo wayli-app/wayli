@@ -48,9 +48,36 @@ export async function handler(
 		const rows = Array.isArray(result) ? result : [];
 		const daysUpserted = (rows[0] as any)?.days_upserted ?? (result as any)?.days_upserted ?? 0;
 
-		job.reportProgress(100, `Done: ${daysUpserted} days`);
-		console.log(`✅ Daily activity refreshed: ${daysUpserted} days for user ${userId}`);
-		return { success: true, result: { days_upserted: daysUpserted, user_id: userId } };
+		// Keep the visited-countries cache fresh alongside the daily one — both
+		// derive from tracker_data and change together on import/deletion. A
+		// failure here must not fail the whole job (the countries map just
+		// serves its previous state).
+		let countriesRefreshed = 0;
+		try {
+			const { error: vcError } = await (db.rpc as any).invoke(
+				'refresh-visited-countries-sql',
+				{},
+				{ namespace: 'wayli' }
+			);
+			if (vcError) throw new Error((vcError as any).message ?? 'RPC failed');
+			const { data: vcRows } = await (db.rpc as any).invoke(
+				'visited-countries',
+				{},
+				{ namespace: 'wayli' }
+			);
+			countriesRefreshed = Array.isArray(vcRows) ? vcRows.length : 0;
+		} catch (vcErr) {
+			console.warn('⚠️ visited-countries refresh failed (kept previous cache):', vcErr);
+		}
+
+		job.reportProgress(100, `Done: ${daysUpserted} days, ${countriesRefreshed} countries`);
+		console.log(
+			`✅ Daily activity refreshed: ${daysUpserted} days, ${countriesRefreshed} countries for user ${userId}`
+		);
+		return {
+			success: true,
+			result: { days_upserted: daysUpserted, countries: countriesRefreshed, user_id: userId }
+		};
 	} catch (error: unknown) {
 		console.error(`❌ refresh-daily-activity failed:`, error);
 		return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };

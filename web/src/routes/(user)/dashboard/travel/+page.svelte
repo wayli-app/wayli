@@ -252,8 +252,14 @@
 	const mapPoints = $derived(activeTripId ? activeTripGpsPoints : []);
 	const mapMarkers = $derived(activeTripId ? [] : cityMarkers);
 
-	// Visited countries for world map
+	// Visited countries for world map. Source of truth is the visited-countries
+	// RPC (all tracker data with a ≥1h dwell rule — includes pending trips and
+	// countries the geocoder missed). Falls back to trip-metadata-derived codes
+	// until the cache has been built (empty RPC result, e.g. fresh account).
+	let trackedCountries = $state<string[] | null>(null); // null = not loaded yet
+
 	const visitedCountries = $derived.by(() => {
+		if (trackedCountries && trackedCountries.length > 0) return trackedCountries;
 		const codes = new Set<string>();
 		for (const trip of trips) {
 			const meta = trip.metadata;
@@ -268,6 +274,24 @@
 		}
 		return [...codes];
 	});
+
+	/** Load cached per-country presence (dwell ≥ 1h). Silent on failure — the
+	 *  metadata fallback above keeps the map populated. */
+	async function loadTrackedCountries() {
+		try {
+			const { data, error } = await (fluxbase.rpc as any).invoke(
+				'visited-countries',
+				{},
+				{ namespace: 'wayli' }
+			);
+			if (error) return;
+			trackedCountries = ((data as any[]) ?? [])
+				.map((r) => String(r.country_code).toUpperCase())
+				.filter(Boolean);
+		} catch {
+			// cache not built / RPC unavailable — fallback stays active
+		}
+	}
 
 	onMount(() => {
 		// Fire-and-forget: road-snapping beta opt-in gates snapped map rendering.
@@ -298,7 +322,13 @@
 			}
 
 			await loadTrips();
-			await Promise.all([loadEntries(), loadGpsData(), loadPendingTrips(), loadPublicUrl()]);
+			await Promise.all([
+				loadEntries(),
+				loadGpsData(),
+				loadPendingTrips(),
+				loadPublicUrl(),
+				loadTrackedCountries()
+			]);
 
 			// Check URL for deep-link ?trip={id}
 			const urlTripId = page.url.searchParams.get('trip');
