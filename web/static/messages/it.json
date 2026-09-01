@@ -528,6 +528,12 @@
 		"exclusionZones": "Zone di esclusione",
 		"heatmap": "Mappa di calore",
 		"heatmapToggle": "Mostra dove passi il tempo",
+		"roadMatch": "Allinea alle strade",
+		"roadMatching": "Allineamento…",
+		"roadMatchToggle": "Allinea il tracciato visibile alle strade tramite Valhalla",
+		"roadMatchDisabledTitle": "Funzione beta: abilita 'Percorsi allineati alle strade' nelle Impostazioni account",
+		"roadMatchPartial": "Nessuna corrispondenza stradale affidabile per questa vista: le sezioni non corrispondenti restano grezze",
+		"roadMatchFailed": "Allineamento alle strade non riuscito",
 		"segmentSelected": "Segmento selezionato ({count} punti)",
 		"segmentSingular": "segmento",
 		"segmentPlural": "segmenti",
@@ -1071,7 +1077,9 @@
 		"betaFeaturesTitle": "Funzioni beta",
 		"betaFeaturesDescription": "Attiva funzioni sperimentali. Possono cambiare o essere rimosse in qualsiasi momento.",
 		"fitnessBetaName": "Fitness",
-		"fitnessBetaDescription": "Importa file di allenamento .fit e analizza le tue sessioni (frequenza cardiaca, potenza, cadenza)."
+		"fitnessBetaDescription": "Importa file di allenamento .fit e analizza le tue sessioni (frequenza cardiaca, potenza, cadenza).",
+		"valhallaRoutesBetaName": "Percorsi allineati alle strade",
+		"valhallaRoutesBetaDescription": "Allinea i tuoi tracciati alle strade tramite il server di routing (Valhalla): percorsi di viaggio più fluidi e una vista 'Allinea alle strade' nella pagina Dati di localizzazione. I tuoi segmenti di movimento vengono inviati al server di routing."
 	},
 	"serverAdmin": {
 		"title": "Impostazioni di amministrazione del server",

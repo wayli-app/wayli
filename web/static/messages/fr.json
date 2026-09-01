@@ -528,6 +528,12 @@
 		"exclusionZones": "Zones d'exclusion",
 		"heatmap": "Carte de chaleur",
 		"heatmapToggle": "Voir où vous passez du temps",
+		"roadMatch": "Aligner sur les routes",
+		"roadMatching": "Alignement…",
+		"roadMatchToggle": "Aligner la trace visible sur les routes via Valhalla",
+		"roadMatchDisabledTitle": "Fonction bêta — activez « Routes alignées sur les routes » dans les paramètres du compte",
+		"roadMatchPartial": "Pas de correspondance routière fiable pour cette vue — les sections non appariées restent brutes",
+		"roadMatchFailed": "Échec de l'alignement sur les routes",
 		"segmentSelected": "Segment sélectionné ({count} points)",
 		"segmentSingular": "segment",
 		"segmentPlural": "segments",
@@ -1074,7 +1080,9 @@
 		"betaFeaturesTitle": "Fonctions bêta",
 		"betaFeaturesDescription": "Activez des fonctions expérimentales. Elles peuvent changer ou disparaître à tout moment.",
 		"fitnessBetaName": "Fitness",
-		"fitnessBetaDescription": "Importez des fichiers d'entraînement .fit et analysez vos séances (fréquence cardiaque, puissance, cadence)."
+		"fitnessBetaDescription": "Importez des fichiers d'entraînement .fit et analysez vos séances (fréquence cardiaque, puissance, cadence).",
+		"valhallaRoutesBetaName": "Routes alignées sur les routes",
+		"valhallaRoutesBetaDescription": "Alignez vos traces sur les routes via le serveur de calcul d'itinéraires (Valhalla) : des itinéraires plus fluides et une vue « Aligner sur les routes » sur la page Données de localisation. Vos segments de déplacement sont envoyés au serveur de calcul d'itinéraires."
 	},
 	"serverAdmin": {
 		"title": "Paramètres d'administration du serveur",

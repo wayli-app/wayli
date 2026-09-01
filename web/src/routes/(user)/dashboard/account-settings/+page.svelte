@@ -33,6 +33,7 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { readSetting } from '$lib/utils/settings';
 	import { setFitnessBeta } from '$lib/stores/fitness-beta.svelte';
+	import { setValhallaBeta } from '$lib/stores/valhalla-beta.svelte';
 	import {
 		fitnessSharing,
 		loadFitnessSharing,
@@ -120,6 +121,9 @@
 	// because gated UI depends on it.
 	let fitnessBetaEnabled = $state(false);
 	let fitnessBetaUpdating = $state(false);
+	// Valhalla road-snapping beta opt-in — same immediate-persist pattern.
+	let valhallaRoutesBetaEnabled = $state(false);
+	let valhallaRoutesBetaUpdating = $state(false);
 
 	// Fitness sharing defaults; persisted immediately like the beta flag.
 	let fitnessDefaultAudience = $state<FitnessAudience>('private');
@@ -189,6 +193,25 @@
 			toast.error(t('accountSettings.betaFeaturesTitle'));
 		} finally {
 			fitnessBetaUpdating = false;
+		}
+	}
+
+	async function handleValhallaRoutesToggle() {
+		valhallaRoutesBetaUpdating = true;
+		try {
+			await setValhallaBeta(valhallaRoutesBetaEnabled);
+			toast.success(
+				valhallaRoutesBetaEnabled
+					? `${t('accountSettings.valhallaRoutesBetaName')} — ${t('fitness.betaBadge')}`
+					: t('accountSettings.betaFeaturesTitle')
+			);
+		} catch (error) {
+			// Revert the switch on failure
+			valhallaRoutesBetaEnabled = !valhallaRoutesBetaEnabled;
+			console.error('Failed to toggle road-snapping beta:', error);
+			toast.error(t('accountSettings.betaFeaturesTitle'));
+		} finally {
+			valhallaRoutesBetaUpdating = false;
 		}
 	}
 	let profileAvatarUrl = $state('');
@@ -295,7 +318,6 @@
 	let samplingSaving = $state(false);
 	let error = $state<string | null>(null);
 	let homeAddressInput = $state('');
-	let homeAddressInputElement: HTMLInputElement | undefined = $state(undefined);
 	let isHomeAddressSearching = $state(false);
 	let homeAddressSuggestions = $state<any[]>([]);
 	let showHomeAddressSuggestions = $state(false);
@@ -454,6 +476,8 @@
 				notificationsEnabled = preferences.notifications_enabled ?? false;
 				valhallaEnabled = (preferences as any).preferences?.use_valhalla_transport === true;
 				fitnessBetaEnabled = (preferences as any).preferences?.beta_features?.fitness === true;
+				valhallaRoutesBetaEnabled =
+					(preferences as any).preferences?.beta_features?.valhalla_routes === true;
 			}
 
 			// Load user secret metadata via listSecrets (batch — no 404 per key).
@@ -1591,14 +1615,14 @@
 					</p>
 
 					<div class="relative">
-						<input
+						<Input
 							id="homeAddress"
 							type="text"
 							bind:value={homeAddressInput}
-							bind:this={homeAddressInputElement}
 							oninput={handleHomeAddressInput}
 							onkeydown={handleHomeAddressKeydown}
 							placeholder={t('accountSettings.startTypingHomeAddress')}
+							autocomplete="off"
 							class="w-full"
 						/>
 						{#if isHomeAddressSearching}
@@ -2095,14 +2119,10 @@
 				<!-- Notifications -->
 				<div>
 					<span class="text-foreground mb-1.5 block text-sm font-medium">Notifications</span>
-					<label class="flex items-center gap-2">
-						<input
-							type="checkbox"
-							bind:checked={notificationsEnabled}
-							class="border-border h-4 w-4 rounded"
-						/>
+					<div class="flex items-start justify-between gap-4">
 						<span class="text-muted-foreground text-sm">Enable in-app notifications</span>
-					</label>
+						<Switch bind:checked={notificationsEnabled} label="Enable in-app notifications" />
+					</div>
 				</div>
 
 				<!-- Transport detection (Valhalla map matching) -->
@@ -2110,17 +2130,13 @@
 					<span class="text-foreground mb-1.5 block text-sm font-medium">
 						Transport Detection
 					</span>
-					<label class="flex items-center gap-2">
-						<input
-							type="checkbox"
-							bind:checked={valhallaEnabled}
-							class="border-border h-4 w-4 rounded"
-						/>
+					<div class="flex items-start justify-between gap-4">
 						<span class="text-muted-foreground text-sm">
 							Improve transport mode detection with map matching (sends movement segments to the
 							routing server)
 						</span>
-					</label>
+						<Switch bind:checked={valhallaEnabled} label="Transport Detection" />
+					</div>
 				</div>
 			</div>
 
@@ -2174,6 +2190,36 @@
 							disabled={fitnessBetaUpdating}
 							label={t('accountSettings.fitnessBetaName')}
 						/>
+					</div>
+				</div>
+
+				<!-- Valhalla road-snapping beta -->
+				<div class="border-border mt-6 border-t pt-6">
+					<div class="flex items-start justify-between gap-4">
+						<div>
+							<span class="text-foreground mb-1.5 block text-sm font-medium">
+								{t('accountSettings.valhallaRoutesBetaName')}
+								<span
+									class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+								>
+									{t('fitness.betaBadge')}
+								</span>
+							</span>
+							<p class="text-muted-foreground text-sm">
+								{t('accountSettings.valhallaRoutesBetaDescription')}
+							</p>
+						</div>
+						<div class="flex shrink-0 items-center gap-2">
+							{#if valhallaRoutesBetaUpdating}
+								<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
+							{/if}
+							<Switch
+								bind:checked={valhallaRoutesBetaEnabled}
+								onchange={() => handleValhallaRoutesToggle()}
+								disabled={valhallaRoutesBetaUpdating}
+								label={t('accountSettings.valhallaRoutesBetaName')}
+							/>
+						</div>
 					</div>
 				</div>
 
@@ -2347,14 +2393,10 @@
 					<div class="border-border mt-4 space-y-2 border-t pt-4">
 						<h4 class="text-foreground text-sm font-medium">Personal Rate Limit</h4>
 
-						<label class="flex items-center gap-2">
-							<input
-								type="checkbox"
-								bind:checked={pexelsRateLimitEnabled}
-								class="text-primary focus:ring-primary dark:border-border dark:bg-muted h-4 w-4 rounded border-gray-300"
-							/>
+						<div class="flex items-center justify-between gap-4">
 							<span class="text-muted-foreground text-sm">Set custom rate limit</span>
-						</label>
+							<Switch bind:checked={pexelsRateLimitEnabled} label="Set custom rate limit" />
+						</div>
 
 						{#if !pexelsRateLimitEnabled}
 							<p class="text-muted-foreground text-xs">
@@ -2413,10 +2455,12 @@
 					{t('accountSettings.samplingDescription')}
 				</p>
 
-				<label class="mb-4 flex items-center gap-2 text-sm">
-					<input type="checkbox" bind:checked={samplingEnabled} class="h-4 w-4" />
-					<span class="text-foreground font-medium">{t('accountSettings.samplingEnable')}</span>
-				</label>
+				<div class="mb-4 flex items-center justify-between gap-4">
+					<span class="text-foreground text-sm font-medium"
+						>{t('accountSettings.samplingEnable')}</span
+					>
+					<Switch bind:checked={samplingEnabled} label={t('accountSettings.samplingEnable')} />
+				</div>
 
 				{#if samplingEnabled}
 					<div class="mb-4 grid gap-4 sm:grid-cols-2">

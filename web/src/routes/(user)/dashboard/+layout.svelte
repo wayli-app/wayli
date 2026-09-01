@@ -37,7 +37,7 @@
 	// onMount — localStorage isn't available during server rendering.
 	let aiFabHintDismissed = $state(false);
 
-	let isInitializing = true;
+	let isInitializing = $state(true);
 
 	async function handleSignout() {
 		try {
@@ -168,29 +168,53 @@
 	onMount(async () => {
 		// Read the persisted FAB-hint dismissal now that we're in the browser.
 		aiFabHintDismissed = localStorage.getItem('wayli.ai.fab_hint_dismissed') === '1';
+
+		// Hard safety net: whatever happens below (a stuck network call, an
+		// await that never settles), the opaque init overlay must never stay up
+		// permanently — a stuck overlay showed up as a blank screen (fixed only
+		// by a manual refresh) when navigating in from a public page.
+		const overlayTimeout = setTimeout(() => {
+			if (!layoutDestroyed && isCheckingAdmin) {
+				console.warn('⚠️ [Dashboard] Initialization timed out, proceeding anyway');
+				isCheckingAdmin = false;
+				isAdmin = false;
+				isInitializing = false;
+			}
+		}, 8000);
+
+		const finishInit = () => {
+			clearTimeout(overlayTimeout);
+			isInitializing = false;
+		};
+
 		try {
 			// Session manager is already initialized in root layout
 			// Wait a bit for any pending auth state changes to settle
 			await new Promise((resolve) => setTimeout(resolve, 100));
 			if (layoutDestroyed) return;
 
-			// Check if user is authenticated using session manager
-			const isAuthenticated = await sessionManager.isAuthenticated();
+			// When the stores are already populated (root layout finished the
+			// session init and the user navigated here client-side, e.g. via
+			// "My Travel" on a public profile), the session is established —
+			// skip the redundant auth round-trip so the overlay clears without
+			// a network dependency.
+			const alreadyAuthenticated = !!($userStore || $sessionStore);
+			if (!alreadyAuthenticated) {
+				const isAuthenticated = await sessionManager.isAuthenticated();
+				if (layoutDestroyed) return;
 
-			if (!isAuthenticated) {
-				goto('/auth/signin');
-				return;
+				if (!isAuthenticated) {
+					finishInit();
+					goto('/auth/signin');
+					return;
+				}
 			}
 
-			// Load user preferences and apply language
-			await loadUserPreferences();
-			if (layoutDestroyed) return;
-
-			// Check if AI features are enabled
-			await checkAIEnabled();
-			if (layoutDestroyed) return;
-
-			// Check admin role with timeout
+			// Preferences (language) and the AI flag don't gate navigation —
+			// run them alongside the admin check instead of in series, so one
+			// slow call can't hold the overlay up. Each handles its own errors.
+			const preferencesLoaded = loadUserPreferences();
+			const aiChecked = checkAIEnabled();
 			const adminCheckPromise = checkAdminRole();
 			const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 5000)); // 5 second timeout
 
@@ -204,11 +228,13 @@
 				isAdmin = false;
 			}
 
-			// Mark initialization as complete
-			isInitializing = false;
+			finishInit();
+			// Don't let a late rejection surface as an unhandled rejection.
+			await Promise.allSettled([preferencesLoaded, aiChecked, adminCheckPromise]);
 		} catch (error) {
 			if (!layoutDestroyed) {
 				console.error('❌ [Dashboard] Error initializing dashboard:', error);
+				finishInit();
 				goto('/auth/signin');
 			}
 		}

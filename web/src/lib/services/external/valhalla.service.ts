@@ -140,9 +140,7 @@ const EDGE_ATTRIBUTES = [
 	'edge.speed',
 	'edge.road_class',
 	'edge.use',
-	'edge.rail',
 	'edge.length',
-	'edge.duration',
 	'edge.begin_shape_index',
 	'edge.end_shape_index'
 ];

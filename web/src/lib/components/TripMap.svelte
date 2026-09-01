@@ -6,12 +6,25 @@
 
 	type Props = {
 		points: Array<{ lat: number; lng: number }>;
+		/**
+		 * Pre-snapped route segments (decoded trips.metadata.routeShape). When
+		 * non-empty these replace `points` for the main track — each segment
+		 * is its own polyline so gaps (privacy-zone crossings) are never
+		 * bridged with a straight line.
+		 */
+		segments?: Array<Array<{ lat: number; lng: number }>>;
 		markers?: Array<{ lat: number; lng: number; label: string }>;
 		highlightPoints?: Array<{ lat: number; lng: number }>;
 		class?: string;
 	};
 
-	let { points, markers = [], highlightPoints = [], class: className = 'h-80' }: Props = $props();
+	let {
+		points,
+		segments = [],
+		markers = [],
+		highlightPoints = [],
+		class: className = 'h-80'
+	}: Props = $props();
 
 	let mapContainer: HTMLDivElement;
 	let map = $state<LeafletMap | null>(null);
@@ -39,6 +52,7 @@
 	$effect(() => {
 		const m = map;
 		const pts = points;
+		const segs = segments;
 		const mkrs = markers;
 		const hp = highlightPoints;
 		const lib = L;
@@ -49,58 +63,80 @@
 
 		// --- Main layer ---
 		ml.clearLayers();
-		let mainPolyline: any = null;
 
-		if (pts.length > 0 || mkrs.length > 0) {
+		// Track geometry: snapped segments when provided (one polyline per
+		// segment — the gaps between them are privacy-zone crossings and must
+		// not be bridged), else the raw points as a single polyline.
+		const trackPolylines: any[] = [];
+		const trackPoints: Array<{ lat: number; lng: number }> = [];
+
+		if (segs.length > 0) {
+			for (const seg of segs) {
+				if (seg.length < 2) continue;
+				const pl = lib.polyline(
+					seg.map((p) => [p.lat, p.lng] as [number, number]),
+					{
+						color: MAP_COLORS.trackLine,
+						weight: 4,
+						opacity: 0.6
+					}
+				);
+				pl.addTo(ml);
+				trackPolylines.push(pl);
+				trackPoints.push(...seg);
+			}
+		} else if (pts.length > 0 || mkrs.length > 0) {
 			const sampled =
 				pts.length > 1500 ? pts.filter((_, i) => i % Math.ceil(pts.length / 1500) === 0) : pts;
 
 			if (sampled.length > 1) {
 				const latlngs = sampled.map((p) => [p.lat, p.lng] as [number, number]);
-				mainPolyline = lib.polyline(latlngs, {
+				const mainPolyline = lib.polyline(latlngs, {
 					color: MAP_COLORS.trackLine,
 					weight: 4,
 					opacity: 0.6
 				});
 				mainPolyline.addTo(ml);
+				trackPolylines.push(mainPolyline);
 			}
+			trackPoints.push(...sampled);
+		}
 
-			if (sampled.length > 0) {
-				lib
-					.circleMarker([sampled[0].lat, sampled[0].lng], {
-						radius: 5,
-						fillColor: MAP_COLORS.startMarker,
-						color: '#fff',
-						weight: 2,
-						fillOpacity: 1
-					})
-					.addTo(ml);
-			}
-			if (sampled.length > 1) {
-				const last = sampled[sampled.length - 1];
-				lib
-					.circleMarker([last.lat, last.lng], {
-						radius: 5,
-						fillColor: MAP_COLORS.endMarker,
-						color: '#fff',
-						weight: 2,
-						fillOpacity: 1
-					})
-					.addTo(ml);
-			}
+		if (trackPoints.length > 0) {
+			lib
+				.circleMarker([trackPoints[0].lat, trackPoints[0].lng], {
+					radius: 5,
+					fillColor: MAP_COLORS.startMarker,
+					color: '#fff',
+					weight: 2,
+					fillOpacity: 1
+				})
+				.addTo(ml);
+		}
+		if (trackPoints.length > 1) {
+			const last = trackPoints[trackPoints.length - 1];
+			lib
+				.circleMarker([last.lat, last.lng], {
+					radius: 5,
+					fillColor: MAP_COLORS.endMarker,
+					color: '#fff',
+					weight: 2,
+					fillOpacity: 1
+				})
+				.addTo(ml);
+		}
 
-			for (const marker of mkrs) {
-				lib
-					.circleMarker([marker.lat, marker.lng], {
-						radius: 6,
-						fillColor: MAP_COLORS.highlight,
-						color: '#fff',
-						weight: 2,
-						fillOpacity: 0.9
-					})
-					.bindPopup(marker.label)
-					.addTo(ml);
-			}
+		for (const marker of mkrs) {
+			lib
+				.circleMarker([marker.lat, marker.lng], {
+					radius: 6,
+					fillColor: MAP_COLORS.highlight,
+					color: '#fff',
+					weight: 2,
+					fillOpacity: 0.9
+				})
+				.bindPopup(marker.label)
+				.addTo(ml);
 		}
 
 		// --- Highlight layer ---
@@ -132,14 +168,15 @@
 			}
 
 			m.fitBounds(lib.latLngBounds(hlatlngs), { padding: [50, 50], maxZoom: 14 });
-		} else if (mainPolyline) {
-			const bounds = mainPolyline.getBounds();
+		} else if (trackPolylines.length > 0) {
+			// Combined bounds across all track segments/polylines.
+			const bounds = lib.latLngBounds(trackPolylines.map((pl: any) => pl.getBounds()));
 			if (bounds.isValid()) {
 				m.fitBounds(bounds, { padding: [30, 30] });
 			}
-		} else if (pts.length > 0) {
+		} else if (trackPoints.length > 0) {
 			// Single point or markers only: center on first point
-			m.setView([pts[0].lat, pts[0].lng], 13);
+			m.setView([trackPoints[0].lat, trackPoints[0].lng], 13);
 		} else if (mkrs.length > 0) {
 			m.setView([mkrs[0].lat, mkrs[0].lng], 3);
 		} else {

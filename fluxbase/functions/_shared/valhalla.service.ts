@@ -1,7 +1,7 @@
-// /Users/bart/Dev/wayli/fluxbase/jobs/_shared/services/external/valhalla.service.ts
-// Mirrored for the functions tree at
-// functions/_shared/services/external/valhalla.service.ts (functions cannot
-// import from ../jobs at runtime). Update both together.
+// fluxbase/functions/_shared/valhalla.service.ts (flat — the sync only registers top-level _shared files)
+// Mirrors jobs/_shared/services/external/valhalla.service.ts (web has a
+// test-only mirror too). Update ALL together. Copied here because functions
+// bundle from their own tree and cannot import from ../jobs at runtime.
 //
 // Client for the self-hosted Valhalla routing engine (https://valhalla.wayli.app).
 // Provides GPS trace map-matching via the /trace_attributes endpoint — Valhalla's
@@ -137,17 +137,15 @@ export interface ValhallaTraceResult {
 
 // ─── API client ─────────────────────────────────────────────────────────────
 
-/** Attributes we want from trace_attributes — the minimum for mode detection.
- *  edge.rail and edge.duration are intentionally NOT requested: Valhalla 3.8+
- *  no longer recognizes them (it logs an ERROR per attribute per request).
- *  Rail evidence comes from "RAILWAY | " clone path names instead, and edge
- *  durations were never consumed. */
+/** Attributes we want from trace_attributes — the minimum for mode detection. */
 const EDGE_ATTRIBUTES = [
 	'edge.names',
 	'edge.speed',
 	'edge.road_class',
 	'edge.use',
+	'edge.rail',
 	'edge.length',
+	'edge.duration',
 	'edge.begin_shape_index',
 	'edge.end_shape_index'
 ];

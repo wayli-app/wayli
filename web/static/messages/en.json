@@ -526,6 +526,12 @@
     "exclusionZones": "Exclusion Zones",
     "heatmap": "Heatmap",
     "heatmapToggle": "Show where you spend time",
+    "roadMatch": "Snap to roads",
+    "roadMatching": "Matching…",
+    "roadMatchToggle": "Match the visible track to roads via Valhalla",
+    "roadMatchDisabledTitle": "Beta feature — enable 'Road-Snapped Routes' in Account Settings",
+    "roadMatchPartial": "No confident road match for this view — unmatched sections stay raw",
+    "roadMatchFailed": "Road matching failed",
     "segmentSelected": "Segment selected ({count} points)",
     "segmentSingular": "segment",
     "segmentPlural": "segments",
@@ -1069,7 +1075,9 @@
     "betaFeaturesTitle": "Beta features",
     "betaFeaturesDescription": "Opt in to experimental features. They may change or be removed at any time.",
     "fitnessBetaName": "Fitness",
-    "fitnessBetaDescription": "Import .fit workout files and analyze your sessions (heart rate, power, cadence)."
+    "fitnessBetaDescription": "Import .fit workout files and analyze your sessions (heart rate, power, cadence).",
+    "valhallaRoutesBetaName": "Road-Snapped Routes",
+    "valhallaRoutesBetaDescription": "Match your tracks to roads via the routing server (Valhalla): smoother trip routes and a 'Snap to roads' view on the Location Data page. Your movement segments are sent to the routing server."
   },
   "serverAdmin": {
     "title": "Server admin settings",

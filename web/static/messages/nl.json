@@ -528,6 +528,12 @@
 		"exclusionZones": "Uitsluitingszones",
 		"heatmap": "Heatmap",
 		"heatmapToggle": "Toon waar je tijd doorbrengt",
+		"roadMatch": "Uitlijnen op wegen",
+		"roadMatching": "Uitlijnen…",
+		"roadMatchToggle": "Lijn de zichtbare track uit op wegen via Valhalla",
+		"roadMatchDisabledTitle": "Betafunctie — schakel 'Wegvolgende routes' in bij Accountinstellingen",
+		"roadMatchPartial": "Geen betrouwbare wegenmatch voor deze weergave — niet-gematchte delen blijven ruw",
+		"roadMatchFailed": "Uitlijnen op wegen mislukt",
 		"segmentSelected": "Segment geselecteerd ({count} punten)",
 		"segmentSingular": "segment",
 		"segmentPlural": "segmenten",
@@ -1071,7 +1077,9 @@
 		"betaFeaturesTitle": "Betafuncties",
 		"betaFeaturesDescription": "Meld je aan voor experimentele functies. Deze kunnen op elk moment veranderen of verdwijnen.",
 		"fitnessBetaName": "Fitness",
-		"fitnessBetaDescription": "Importeer .fit-trainingsbestanden en analyseer je sessies (hartslag, vermogen, cadans)."
+		"fitnessBetaDescription": "Importeer .fit-trainingsbestanden en analyseer je sessies (hartslag, vermogen, cadans).",
+		"valhallaRoutesBetaName": "Wegvolgende routes",
+		"valhallaRoutesBetaDescription": "Lijn je tracks af op wegen via de routingserver (Valhalla): vloeiender reisroutes en een 'Uitlijnen op wegen'-weergave op de Locatiegegevens-pagina. Je bewegingssegmenten worden naar de routingserver gestuurd."
 	},
 	"serverAdmin": {
 		"title": "Server beheerder instellingen",

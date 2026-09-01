@@ -12,6 +12,7 @@
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
 	import { fetchTrackPoints } from '$lib/services/gps.service';
+	import { fromStoredSegments } from '$lib/services/trip-route/trip-route-geometry';
 	import { PLAN_CATEGORY_COLORS } from '$lib/utils/colors';
 	import {
 		ArrowLeft,
@@ -109,6 +110,16 @@
 	const tripId = $derived(page.params.tripId ?? '');
 
 	const mapPoints = $derived(allGpsPoints.map((p) => ({ lat: p.lat, lng: p.lng })));
+
+	// Valhalla-snapped route (trips.metadata.routeShape) — shown whenever the
+	// trip has one; falls back to the raw GPS points otherwise. The shape was
+	// generated server-side for owners who opted into the beta, and is already
+	// privacy-clipped (home + trip exclusion zones) before storage.
+	const routeSegments = $derived.by(() => {
+		const stored = trip?.metadata?.routeShape?.segments;
+		if (!Array.isArray(stored) || stored.length === 0) return [];
+		return fromStoredSegments(stored);
+	});
 
 	const highlightPoints = $derived.by(() => {
 		if (!activeEntryId) return [];
@@ -638,8 +649,9 @@
 				</div>
 			{/if}
 
-			<!-- Sticky map sidebar -->
-			<div class="hidden lg:block">
+			<!-- Sticky map sidebar (only when there are entries — the no-entries
+			     case shows the route as main content below instead) -->
+			<div class="hidden {entries.length > 0 ? 'lg:block' : ''}">
 				<div class="sticky top-6 space-y-4">
 					<div class="border-border overflow-hidden rounded-3xl border shadow-xl">
 						<div class="border-border bg-card flex items-center gap-2 border-b px-4 py-3">
@@ -661,9 +673,10 @@
 								</span>
 							{/if}
 						</div>
-						{#if mapPoints.length > 0 || cityMarkers.length > 0}
+						{#if mapPoints.length > 0 || cityMarkers.length > 0 || routeSegments.length > 0}
 							<TripMap
 								points={mapPoints}
+								segments={routeSegments}
 								markers={cityMarkers}
 								{highlightPoints}
 								class="h-[420px]"
@@ -710,20 +723,28 @@
 	</div>
 {/if}
 
-<!-- Mobile map -->
-{#if !isLoading && !notFound && trip && (allGpsPoints.length > 0 || cityMarkers.length > 0)}
-	<div
-		class="border-border bg-card mt-4 overflow-hidden rounded-3xl border p-3 shadow-sm lg:hidden"
-	>
-		<div class="text-foreground mb-2 flex items-center gap-2 text-sm font-semibold">
-			<MapPin class="text-primary h-4 w-4" />
-			{#if activeEntryId}
-				{t('plan.dayLabel', { day: entries.findIndex((e) => e.id === activeEntryId) + 1 })}
-			{:else}
-				{t('publicTrip.route')}
-			{/if}
+<!-- Route map: on mobile it supplements the sticky sidebar map; when the trip
+     has no journal entries the route is the page's content, so it shows at
+     full size on every screen size. -->
+{#if !isLoading && !notFound && trip && (allGpsPoints.length > 0 || cityMarkers.length > 0 || routeSegments.length > 0)}
+	<div class="mx-auto mt-4 max-w-7xl px-4 {entries.length === 0 ? '' : 'lg:hidden'}">
+		<div class="border-border bg-card overflow-hidden rounded-3xl border p-3 shadow-sm">
+			<div class="text-foreground mb-2 flex items-center gap-2 text-sm font-semibold">
+				<MapPin class="text-primary h-4 w-4" />
+				{#if activeEntryId}
+					{t('plan.dayLabel', { day: entries.findIndex((e) => e.id === activeEntryId) + 1 })}
+				{:else}
+					{t('publicTrip.route')}
+				{/if}
+			</div>
+			<TripMap
+				points={mapPoints}
+				segments={routeSegments}
+				markers={cityMarkers}
+				{highlightPoints}
+				class={entries.length === 0 ? 'h-[420px]' : 'h-56'}
+			/>
 		</div>
-		<TripMap points={mapPoints} markers={cityMarkers} {highlightPoints} class="h-56" />
 	</div>
 {/if}
 

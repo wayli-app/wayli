@@ -528,6 +528,12 @@
 		"exclusionZones": "排除区域",
 		"heatmap": "热力图",
 		"heatmapToggle": "显示你停留的地方",
+		"roadMatch": "吸附到道路",
+		"roadMatching": "吸附中…",
+		"roadMatchToggle": "通过 Valhalla 将可见轨迹吸附到道路",
+		"roadMatchDisabledTitle": "测试功能 — 请在账户设置中启用“道路贴合路线”",
+		"roadMatchPartial": "此视图没有可靠的道路匹配——未匹配的路段保持原始状态",
+		"roadMatchFailed": "道路吸附失败",
 		"segmentSelected": "已选路段（{count} 个点）",
 		"segmentSingular": "路段",
 		"segmentPlural": "路段",
@@ -1075,7 +1081,9 @@
 		"betaFeaturesTitle": "测试版功能",
 		"betaFeaturesDescription": "启用实验性功能。这些功能可能随时更改或移除。",
 		"fitnessBetaName": "健身",
-		"fitnessBetaDescription": "导入 .fit 训练文件并分析您的训练（心率、功率、踏频）。"
+		"fitnessBetaDescription": "导入 .fit 训练文件并分析您的训练（心率、功率、踏频）。",
+		"valhallaRoutesBetaName": "道路贴合路线",
+		"valhallaRoutesBetaDescription": "通过路由服务器（Valhalla）将你的轨迹贴合到道路：更平滑的旅行路线，以及位置数据页上的“吸附到道路”视图。你的移动段会被发送到路由服务器。"
 	},
 	"serverAdmin": {
 		"title": "服务器管理设置",

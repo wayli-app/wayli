@@ -528,6 +528,12 @@
 		"exclusionZones": "Ausschlusszonen",
 		"heatmap": "Heatmap",
 		"heatmapToggle": "Zeigen, wo du Zeit verbringst",
+		"roadMatch": "Auf Straßen ausrichten",
+		"roadMatching": "Ausrichten…",
+		"roadMatchToggle": "Die sichtbare Strecke über Valhalla auf Straßen ausrichten",
+		"roadMatchDisabledTitle": "Beta-Funktion — aktiviere 'Straßengenaue Routen' in den Kontoeinstellungen",
+		"roadMatchPartial": "Keine zuverlässige Straßenübereinstimmung für diese Ansicht — nicht zugeordnete Abschnitte bleiben roh",
+		"roadMatchFailed": "Straßenausrichtung fehlgeschlagen",
 		"segmentSelected": "Segment ausgewählt ({count} Punkte)",
 		"segmentSingular": "Segment",
 		"segmentPlural": "Segmente",
@@ -1071,7 +1077,9 @@
 		"betaFeaturesTitle": "Beta-Funktionen",
 		"betaFeaturesDescription": "Aktiviere experimentelle Funktionen. Diese können sich jederzeit ändern oder entfernt werden.",
 		"fitnessBetaName": "Fitness",
-		"fitnessBetaDescription": "Importiere .fit-Trainingsdateien und analysiere deine Einheiten (Herzfrequenz, Leistung, Trittfrequenz)."
+		"fitnessBetaDescription": "Importiere .fit-Trainingsdateien und analysiere deine Einheiten (Herzfrequenz, Leistung, Trittfrequenz).",
+		"valhallaRoutesBetaName": "Straßengenaue Routen",
+		"valhallaRoutesBetaDescription": "Deine Tracks über den Routingserver (Valhalla) auf Straßen ausrichten: glattere Reiserouten und eine 'Auf Straßen ausrichten'-Ansicht auf der Standortdaten-Seite. Deine Bewegungssegmente werden an den Routingserver gesendet."
 	},
 	"serverAdmin": {
 		"title": "Serveradministratoreinstellungen",
