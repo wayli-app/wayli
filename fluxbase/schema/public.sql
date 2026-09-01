@@ -453,14 +453,6 @@ CREATE POLICY "Users can write own visited countries" ON visited_countries FOR I
 CREATE POLICY "Users can delete own visited countries" ON visited_countries FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 --
--- Name: idx_tracker_data_user_country_time; Type: INDEX; Schema: -; Owner: -
---
-
-CREATE INDEX IF NOT EXISTS idx_tracker_data_user_country_time
-  ON tracker_data (user_id, country_code, recorded_at)
-  WHERE location IS NOT NULL AND country_code IS NOT NULL;
-
---
 -- Name: tracker_daily_activity_state; Type: TABLE; Schema: -; Owner: -
 --
 
@@ -645,6 +637,16 @@ CREATE INDEX IF NOT EXISTS idx_tracker_data_user_timestamp_ordered ON tracker_da
 
 
 COMMENT ON INDEX idx_tracker_data_user_timestamp_ordered IS 'Optimizes LAG window function performance for distance calculations';
+
+--
+-- Name: idx_tracker_data_user_country_time; Type: INDEX; Schema: -; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_tracker_data_user_country_time
+  ON tracker_data (user_id, country_code, recorded_at)
+  WHERE location IS NOT NULL AND country_code IS NOT NULL;
+
+COMMENT ON INDEX idx_tracker_data_user_country_time IS 'Serves the visited-countries dwell aggregation (refresh-visited-countries-sql RPC): per-country ordered scans of the user''s points.';
 
 --
 -- Name: tracker_data; Type: RLS; Schema: -; Owner: -
