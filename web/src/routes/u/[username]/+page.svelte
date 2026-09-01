@@ -102,8 +102,14 @@
 		};
 	});
 
-	// World map: visited countries from all trips
+	// World map: visited countries. The owner gets the full dwell-based set
+	// (visited-countries RPC over all their tracker data); visitors keep the
+	// trip-metadata derivation so only countries from trips they can see show —
+	// the RPC would leak presence from private trips.
+	let trackedCountries = $state<string[] | null>(null); // null = not loaded / not owner
+
 	const visitedCountries = $derived.by(() => {
+		if (trackedCountries && trackedCountries.length > 0) return trackedCountries;
 		const codes = new Set<string>();
 		for (const trip of trips) {
 			const meta = trip.metadata;
@@ -118,6 +124,23 @@
 		}
 		return [...codes];
 	});
+
+	/** Owner-only: load the cached dwell-based country set. Silent on failure. */
+	async function loadTrackedCountries() {
+		try {
+			const { data, error } = await (fluxbase.rpc as any).invoke(
+				'visited-countries',
+				{},
+				{ namespace: 'wayli' }
+			);
+			if (error) return;
+			trackedCountries = ((data as any[]) ?? [])
+				.map((r) => String(r.country_code).toUpperCase())
+				.filter(Boolean);
+		} catch {
+			// fallback stays active
+		}
+	}
 
 	// Merged movement timeline: trips + shared fitness activities, newest
 	// first, with All / Trips / Activities type filters. Sort keys apply to
@@ -231,6 +254,10 @@
 			}
 			profile = profileData as unknown as Profile;
 			isOwner = currentUserId === profile.id;
+
+			// Owner: upgrade the map to the full dwell-based country set. Visitors
+			// keep the metadata derivation (no presence leak from private trips).
+			if (isOwner) void loadTrackedCountries();
 
 			let tripQuery = fluxbase
 				.from('trips')

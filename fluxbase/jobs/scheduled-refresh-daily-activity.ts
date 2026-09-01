@@ -77,9 +77,38 @@ export async function handler(
 		}
 	}
 
-	job.reportProgress(100, `Done: ${processed} users, ${totalDays} days`);
-	console.log(`✅ Daily activity refresh complete: ${processed} users, ${totalDays} days`);
-	return { success: true, result: { users_processed: processed, days_upserted: totalDays } };
+	// Visited-countries cache: one set-based rebuild for ALL users (the RPC is
+	// user_id-optional for service roles). Failure must not fail the job — the
+	// countries map keeps serving its previous state.
+	let countries = 0;
+	try {
+		const { error: vcError } = await (db.rpc as any).invoke(
+			'refresh-visited-countries-sql',
+			{},
+			{ namespace: 'wayli' }
+		);
+		if (vcError) throw new Error((vcError as any).message ?? 'RPC failed');
+		// Count via the table — the reader RPC is auth.uid()-scoped, which is
+		// empty under the service role this job runs as.
+		const { count } = await db
+			.from('visited_countries')
+			.select('*', { count: 'exact', head: true });
+		countries = count ?? 0;
+	} catch (vcErr) {
+		console.warn('⚠️ visited-countries refresh failed (kept previous cache):', vcErr);
+	}
+
+	job.reportProgress(
+		100,
+		`Done: ${processed} users, ${totalDays} days, ${countries} countries`
+	);
+	console.log(
+		`✅ Daily activity refresh complete: ${processed} users, ${totalDays} days, ${countries} countries`
+	);
+	return {
+		success: true,
+		result: { users_processed: processed, days_upserted: totalDays, countries }
+	};
 }
 
 async function refreshUser(db: FluxbaseClient, userId: string, now: Date): Promise<number> {
