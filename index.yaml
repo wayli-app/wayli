@@ -814,6 +814,33 @@ entries:
     - https://github.com/nimbleflux/wayli/releases/download/chart-3.0.0-rc.1/wayli-3.0.0-rc.1.tgz
     version: 3.0.0-rc.1
   - apiVersion: v2
+    appVersion: v2.5.1
+    created: "2026-09-01T12:04:06.693691689Z"
+    dependencies:
+    - condition: fluxbase.enabled
+      name: fluxbase
+      repository: oci://ghcr.io/nimbleflux/charts
+      version: 2026.8.14
+    description: A privacy-first location analysis and trip tracking application
+    digest: d6ed0b3e5dfb019e27c8622812aedf35481650a093a063780de00e8535777cbb
+    home: https://github.com/nimbleflux/wayli
+    keywords:
+    - location
+    - tracking
+    - privacy
+    - trip-analysis
+    - gps
+    maintainers:
+    - name: nimbleflux
+      url: https://github.com/nimbleflux/wayli
+    name: wayli
+    sources:
+    - https://github.com/nimbleflux/wayli
+    type: application
+    urls:
+    - https://github.com/nimbleflux/wayli/releases/download/chart-2.5.1/wayli-2.5.1.tgz
+    version: 2.5.1
+  - apiVersion: v2
     appVersion: v2.5.0
     created: "2026-08-27T19:09:28.984518015Z"
     dependencies:
@@ -7097,4 +7124,4 @@ entries:
     urls:
     - https://github.com/wayli-app/wayli/releases/download/chart-0.0.1/wayli-0.0.1.tgz
     version: 0.0.1
-generated: "2026-08-27T19:09:28.985261934Z"
+generated: "2026-09-01T12:04:06.694410159Z"
