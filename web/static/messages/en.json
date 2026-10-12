@@ -1617,7 +1617,9 @@
     "thresholdMinPairs": "Minimum matches per section",
     "focusSectionHint": "Show this section on the map",
     "footerRemoves": "Removes: {count} points ({labels})",
-    "footerKeeps": "Keeps: {count} points ({labels})"
+    "footerKeeps": "Keeps: {count} points ({labels})",
+    "sideLiveWithDevice": "Live recording ({device})",
+    "previewHint": "Preview shows up to 4,000 sample points — the exact removed set is derived when you confirm."
   },
   "dataEditor": {
     "pageTitle": "Data Editor · Wayli",

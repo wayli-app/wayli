@@ -1617,7 +1617,9 @@
     "thresholdMinPairs": "セクションあたりの最小一致数",
     "focusSectionHint": "このセクションを地図に表示",
     "footerRemoves": "削除：{count} 点（{labels}）",
-    "footerKeeps": "保持：{count} 点（{labels}）"
+    "footerKeeps": "保持：{count} 点（{labels}）",
+    "sideLiveWithDevice": "ライブ記録（{device}）",
+    "previewHint": "プレビューは最大 4,000 点のサンプルです。実際に削除されるセットは確定時に算出されます。"
   },
   "dataEditor": {
     "accuracy": "精度: ±{値}m",

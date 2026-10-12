@@ -1617,7 +1617,9 @@
     "thresholdMinPairs": "구간당 최소 일치 수",
     "focusSectionHint": "지도에서 이 구간 보기",
     "footerRemoves": "삭제: {count}개 지점 ({labels})",
-    "footerKeeps": "유지: {count}개 지점 ({labels})"
+    "footerKeeps": "유지: {count}개 지점 ({labels})",
+    "sideLiveWithDevice": "실시간 기록 ({device})",
+    "previewHint": "미리보기는 최대 4,000개의 샘플 지점을 표시하며, 정확한 삭제 목록은 확인 시 계산됩니다."
   },
   "dataEditor": {
     "accuracy": "정확도: ±{value}m",

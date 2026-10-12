@@ -1617,7 +1617,9 @@
     "thresholdMinPairs": "Минимум совпадений на участок",
     "focusSectionHint": "Показать этот участок на карте",
     "footerRemoves": "Удаляет: {count} точек ({labels})",
-    "footerKeeps": "Оставляет: {count} точек ({labels})"
+    "footerKeeps": "Оставляет: {count} точек ({labels})",
+    "sideLiveWithDevice": "Запись в реальном времени ({device})",
+    "previewHint": "В предпросмотре до 4 000 точек выборки — точный набор удаляемых точек определяется при подтверждении."
   },
   "dataEditor": {
     "accuracy": "Точность: ±{value}м",

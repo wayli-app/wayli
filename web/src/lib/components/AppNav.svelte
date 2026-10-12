@@ -21,6 +21,11 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { pendingTripCount } from '$lib/stores/trip-suggestions';
 	import { pendingFriendRequestCount } from '$lib/stores/friends.svelte';
+	import {
+		pendingDuplicateCount,
+		refreshPendingDuplicateCount
+	} from '$lib/stores/duplicate-reports';
+	import { allJobs } from '$lib/stores/job-store';
 	import { isFitnessBetaEnabled, loadFitnessBeta } from '$lib/stores/fitness-beta.svelte';
 
 	import NotificationsButton from './NotificationsButton.svelte';
@@ -134,6 +139,24 @@
 				pendingFriendRequestCount.set(friendCount ?? 0);
 			} catch {
 				// non-critical
+			}
+
+			// Pending duplicate reports (#274) badge on the Data Editor entry.
+			void refreshPendingDuplicateCount();
+		}
+	});
+
+	// Duplicate findings can appear or resolve from background jobs while the
+	// shell is open (imports write reports, scans create them, cleanups apply
+	// them) — refresh the badge when any of them finishes.
+	let seenDuplicateBadgeJobs = new Set<string>();
+	$effect(() => {
+		for (const job of $allJobs) {
+			if (job.status !== 'completed' || seenDuplicateBadgeJobs.has(job.id)) continue;
+			const name = job.job_name.replace(/-/g, '_');
+			if (name === 'data_import' || name === 'duplicate_scan' || name === 'duplicate_cleanup') {
+				seenDuplicateBadgeJobs.add(job.id);
+				void refreshPendingDuplicateCount();
 			}
 		}
 	});
@@ -273,6 +296,14 @@
 									class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
 								>
 									{$pendingFriendRequestCount}
+								</span>
+							{/if}
+							{#if item.href === '/dashboard/data-editor' && $pendingDuplicateCount > 0}
+								<span
+									class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
+									title={t('duplicates.pendingReports', { count: $pendingDuplicateCount })}
+								>
+									{$pendingDuplicateCount}
 								</span>
 							{/if}
 						</a>

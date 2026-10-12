@@ -1617,7 +1617,9 @@
     "thresholdMinPairs": "Coincidencias mínimas por sección",
     "focusSectionHint": "Mostrar esta sección en el mapa",
     "footerRemoves": "Elimina: {count} puntos ({labels})",
-    "footerKeeps": "Conserva: {count} puntos ({labels})"
+    "footerKeeps": "Conserva: {count} puntos ({labels})",
+    "sideLiveWithDevice": "Grabación en directo ({device})",
+    "previewHint": "La vista previa muestra hasta 4.000 puntos de muestra; el conjunto exacto a eliminar se calcula al confirmar."
   },
   "dataEditor": {
     "accuracy": "Precisión: ±{valor}m",

@@ -1617,7 +1617,9 @@
     "thresholdMinPairs": "Corrispondenze minime per sezione",
     "focusSectionHint": "Mostra questa sezione sulla mappa",
     "footerRemoves": "Rimuove: {count} punti ({labels})",
-    "footerKeeps": "Mantiene: {count} punti ({labels})"
+    "footerKeeps": "Mantiene: {count} punti ({labels})",
+    "sideLiveWithDevice": "Registrazione live ({device})",
+    "previewHint": "L'anteprima mostra fino a 4.000 punti campione — l'insieme esatto da rimuovere viene derivato alla conferma."
   },
   "dataEditor": {
     "accuracy": "Precisione: ±{valore}m",

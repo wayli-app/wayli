@@ -1617,7 +1617,9 @@
     "thresholdMinPairs": "Minimale matches per sectie",
     "focusSectionHint": "Deze sectie op de kaart tonen",
     "footerRemoves": "Verwijdert: {count} punten ({labels})",
-    "footerKeeps": "Houdt: {count} punten ({labels})"
+    "footerKeeps": "Houdt: {count} punten ({labels})",
+    "sideLiveWithDevice": "Live-opname ({device})",
+    "previewHint": "De voorbeeldweergave toont maximaal 4.000 steekproefpunten — de exacte te verwijderen set wordt bij bevestigen afgeleid."
   },
   "dataEditor": {
     "accuracy": "Nauwkeurigheid: ±{waarde} m",

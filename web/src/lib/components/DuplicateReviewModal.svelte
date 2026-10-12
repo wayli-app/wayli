@@ -81,7 +81,10 @@
 			if (d !== 'a' && d !== 'b') continue;
 			const removedSide = d === 'a' ? c.b : c.a;
 			const keptSide = d === 'a' ? c.a : c.b;
-			removes.set(sideLabel(removedSide), (removes.get(sideLabel(removedSide)) ?? 0) + removedSide.count);
+			removes.set(
+				sideLabel(removedSide),
+				(removes.get(sideLabel(removedSide)) ?? 0) + removedSide.count
+			);
 			keeps.set(sideLabel(keptSide), (keeps.get(sideLabel(keptSide)) ?? 0) + keptSide.count);
 		}
 		const group = (m: Map<string, number>, key: string): string | null => {
@@ -107,8 +110,30 @@
 		decisions = { ...decisions, [clusterId]: decision };
 	}
 
+	// Distinct live-device sessions in this report. With a single device the
+	// generic "Live recording" label is unambiguous; with several, labels need
+	// the device id or the user can't tell the radios apart.
+	const deviceSessionCount = $derived.by(() => {
+		const keys = new Set<string>();
+		for (const c of report.clusters ?? []) {
+			for (const s of [c.a, c.b]) {
+				if (s.kind === 'device') keys.add(s.key);
+			}
+		}
+		return keys.size;
+	});
+
+	function shortDeviceId(key: string): string {
+		const id = key.slice('device:'.length);
+		return id.length > 14 ? `${id.slice(0, 12)}…` : id;
+	}
+
 	function sideLabel(s: DuplicateSideStats): string {
-		if (s.kind === 'device') return t('duplicates.sideLive');
+		if (s.kind === 'device') {
+			return deviceSessionCount > 1
+				? t('duplicates.sideLiveWithDevice', { device: shortDeviceId(s.key) })
+				: t('duplicates.sideLive');
+		}
 		if (s.kind === 'legacy') return t('duplicates.sideEarlierImport');
 		if (s.kind === 'import') {
 			const src = report.source;
@@ -394,6 +419,11 @@
 					<span class="text-muted-foreground">{t('duplicates.mapRemoved')}</span>
 				</div>
 			</div>
+		</div>
+
+		<!-- Preview honesty caption: sampled points, exact set derived at apply -->
+		<div class="border-border text-muted-foreground shrink-0 border-b px-4 py-1.5 text-[11px]">
+			{t('duplicates.previewHint')}
 		</div>
 
 		<!-- Sections -->

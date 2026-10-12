@@ -1617,7 +1617,9 @@
     "thresholdMinPairs": "Correspondances minimales par section",
     "focusSectionHint": "Afficher cette section sur la carte",
     "footerRemoves": "Supprime : {count} points ({labels})",
-    "footerKeeps": "Conserve : {count} points ({labels})"
+    "footerKeeps": "Conserve : {count} points ({labels})",
+    "sideLiveWithDevice": "Enregistrement en direct ({device})",
+    "previewHint": "L'aperçu montre jusqu'à 4 000 points d'échantillon — l'ensemble exact des suppressions est calculé à la confirmation."
   },
   "dataEditor": {
     "accuracy": "Précision : ±{valeur} m",

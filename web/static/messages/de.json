@@ -1617,7 +1617,9 @@
     "thresholdMinPairs": "Minimale Treffer pro Abschnitt",
     "focusSectionHint": "Diesen Abschnitt auf der Karte zeigen",
     "footerRemoves": "Entfernt: {count} Punkte ({labels})",
-    "footerKeeps": "Behält: {count} Punkte ({labels})"
+    "footerKeeps": "Behält: {count} Punkte ({labels})",
+    "sideLiveWithDevice": "Live-Aufzeichnung ({device})",
+    "previewHint": "Die Vorschau zeigt bis zu 4.000 Beispielpunkte — die genaue Entfernungsauswahl wird beim Bestätigen abgeleitet."
   },
   "dataEditor": {
     "accuracy": "Genauigkeit: ±{Wert}m",

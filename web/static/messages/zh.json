@@ -1617,7 +1617,9 @@
     "thresholdMinPairs": "每个区段的最小匹配数",
     "focusSectionHint": "在地图上显示此区段",
     "footerRemoves": "移除：{count} 个点（{labels}）",
-    "footerKeeps": "保留：{count} 个点（{labels}）"
+    "footerKeeps": "保留：{count} 个点（{labels}）",
+    "sideLiveWithDevice": "实时记录（{device}）",
+    "previewHint": "预览最多显示 4,000 个采样点——实际移除的精确集合将在确认时计算。"
   },
   "dataEditor": {
     "accuracy": "精度：±{值}m",

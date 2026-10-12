@@ -220,13 +220,17 @@ function notifyTerminalJob(job: JobStoreJob): void {
 				: `${name} cancelled`;
 	const body = job.error_message || (type === 'job_completed' ? job.progress_message : '') || '';
 	// Deep links: exports re-download from the import page; a finished
-	// duplicate cleanup lands in the data editor where the sections lived.
+	// duplicate cleanup lands in the data editor where the sections lived; a
+	// finished import points at the banner that offers "Review duplicates".
 	const link =
-		job.status === 'completed' &&
-		(normalizedName === 'data_export' || normalizedName === 'duplicate_cleanup')
+		job.status === 'completed'
 			? normalizedName === 'data_export'
 				? '/dashboard/import-export'
-				: '/dashboard/data-editor'
+				: normalizedName === 'duplicate_cleanup'
+					? '/dashboard/data-editor'
+					: normalizedName === 'data_import'
+						? '/dashboard/import-export'
+						: null
 			: null;
 
 	// notifications.user_id is NOT NULL; prefer the module-scoped currentUserId
