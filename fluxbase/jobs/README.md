@@ -216,9 +216,20 @@ await fluxbaseService.jobs.submit(
 
 | File                                         | Description                                                                            |
 | -------------------------------------------- | -------------------------------------------------------------------------------------- |
-| [data-import.ts](data-import.ts)             | Unified data import supporting GeoJSON, GPX, KML, OwnTracks, and FIT formats           |
+| [data-import.ts](data-import.ts)             | Unified data import supporting GeoJSON, GPX, KML, OwnTracks, and FIT formats. Stamps every point with a per-run `import_id` and runs overlapping-recording detection afterwards (see [duplicate-detection.service.ts](_shared/services/duplicate-detection.service.ts)) |
 | [data-export.ts](data-export.ts)             | Export user data in GeoJSON or JSON format (downloadable file in storage)              |
 | [polarsteps-import.ts](polarsteps-import.ts) | Import a Polarsteps export (`user_data.zip`): trips, journal entries, GPS data, photos |
+
+### Duplicate Cleanup (#274)
+
+Wayli's `(user_id, recorded_at)` PK makes exact duplicates impossible; "duplicates" here are parallel recordings (e.g. a FIT import plus the live OwnTracks feed of the same ride). Detection finds matching sections, stores a reviewable `duplicate_reports` row, and the user decides in the review dialog — nothing is ever removed without confirmation.
+
+| File                                             | Description                                                                                                    |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| [duplicate-scan.ts](duplicate-scan.ts)           | User-initiated historical scan (data editor): month-windowed overlapping-recording scan, writes one report      |
+| [duplicate-cleanup.ts](duplicate-cleanup.ts)     | Applies a reviewed report: re-derives the exact delete set per section, deletes, repairs distances + watermarks |
+
+Supporting RPCs: `find-duplicate-clusters` (section detection) and `find-duplicate-victims` (exact delete set per section), both in [fluxbase/rpc/](../rpc/).
 
 ### Geocoding
 

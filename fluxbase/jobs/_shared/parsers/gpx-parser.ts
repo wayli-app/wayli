@@ -35,7 +35,8 @@ export async function parseStream(
 	fluxbase: FluxbaseClient,
 	job: JobUtils,
 	startTime: number,
-	fileName: string
+	fileName: string,
+	importId?: string
 ): Promise<ParseResult> {
 	// Import SAX parser for streaming XML
 	const sax = await import('npm:sax');
@@ -89,7 +90,8 @@ export async function parseStream(
 			fluxbase,
 			fileName,
 			TRACKER_TYPE,
-			IMPORT_SOURCE
+			IMPORT_SOURCE,
+			importId
 		);
 		processedPointCount += batch.length;
 

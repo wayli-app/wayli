@@ -48,7 +48,8 @@ export async function parseStream(
 	fluxbase: FluxbaseClient,
 	job: JobUtils,
 	startTime: number,
-	fileName: string
+	fileName: string,
+	importId?: string
 ): Promise<ParseResult> {
 	let importedCount = 0;
 	let skippedCount = 0;
@@ -100,7 +101,8 @@ export async function parseStream(
 			fluxbase,
 			fileName,
 			TRACKER_TYPE,
-			IMPORT_SOURCE
+			IMPORT_SOURCE,
+			importId
 		);
 		processedPointCount += batch.length;
 

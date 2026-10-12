@@ -65,7 +65,8 @@ export async function parseStream(
   fluxbase: FluxbaseClient,
   job: JobUtils,
   startTime: number,
-  fileName: string
+  fileName: string,
+  importId?: string
 ): Promise<ParseResult> {
   let importedCount = 0;
   let skippedCount = 0;
@@ -101,7 +102,8 @@ export async function parseStream(
       fluxbase,
       fileName,
       TRACKER_TYPE,
-      IMPORT_SOURCE
+      IMPORT_SOURCE,
+      importId
     );
     processedPointCount += batch.length;
 
@@ -226,7 +228,8 @@ export async function parseStream(
         .is('activity_type', null)
         .gte('recorded_at', firstRecordAt)
         .lte('recorded_at', lastRecordAt)
-        .contains('geocode', { properties: { import_source: IMPORT_SOURCE } });
+        .contains('geocode', { properties: { import_source: IMPORT_SOURCE } })
+        .contains('geocode', { properties: { import_id: importId } });
       if (tagError) {
         console.warn(`Failed to tag imported points as ${sportTag}: ${tagError.message}`);
       } else {

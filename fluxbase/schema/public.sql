@@ -7489,3 +7489,86 @@ GRANT EXECUTE ON FUNCTION effective_activity_visibility(uuid) TO anon, authentic
 
 -- Future functions default to explicit grants, not the Postgres PUBLIC default.
 ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+
+
+--
+-- duplicate_reports (#274): reviewable results of overlapping-recording
+-- detection. Detection (find-duplicate-clusters RPC, run by data-import or
+-- the duplicate-scan job) writes one row per finding; the user reviews it in
+-- the DuplicateReview modal and either applies it (duplicate-cleanup job),
+-- or dismisses it. Clusters store timestamps, counts and accuracy stats —
+-- never coordinates. Applied/dismissed reports are kept as an audit trail.
+--
+
+CREATE TABLE IF NOT EXISTS duplicate_reports (
+    id uuid DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL,
+    status text NOT NULL DEFAULT 'pending_review',
+    source_type text NOT NULL DEFAULT 'import',
+    source jsonb,
+    params jsonb,
+    clusters jsonb NOT NULL DEFAULT '[]'::jsonb,
+    summary jsonb,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    CONSTRAINT duplicate_reports_pkey PRIMARY KEY (id),
+    CONSTRAINT duplicate_reports_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE,
+    CONSTRAINT duplicate_reports_status_check CHECK (status IN ('pending_review', 'applied', 'dismissed', 'failed')),
+    CONSTRAINT duplicate_reports_source_type_check CHECK (source_type IN ('import', 'scan'))
+);
+
+
+COMMENT ON TABLE duplicate_reports IS 'Overlapping-recording findings (#274): one row per detection run (file import or historical scan). status pending_review until the user applies (duplicate-cleanup job) or dismisses it; applied rows remain as an audit trail.';
+
+COMMENT ON COLUMN duplicate_reports.source IS 'What was scanned: {kind: import, import_id, format, file_name} or {kind: scan, start_date, end_date}.';
+
+COMMENT ON COLUMN duplicate_reports.params IS 'Detection thresholds used (time_window_s, distance_m, merge_gap_min, min_pairs) so the apply step can re-derive the exact delete set with the predicate that found the section.';
+
+COMMENT ON COLUMN duplicate_reports.clusters IS 'Section list: {id, start, end, a, b, pair_count, recommended_keep} where a/b carry {key, kind, count, median_accuracy, points_per_min}. No coordinates.';
+
+
+--
+-- idx_duplicate_reports_user_status; Type: INDEX
+--
+
+CREATE INDEX IF NOT EXISTS idx_duplicate_reports_user_status
+    ON duplicate_reports (user_id, status, created_at DESC);
+
+
+--
+-- Row Level Security for duplicate_reports
+--
+
+ALTER TABLE duplicate_reports ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "Users can view own duplicate_reports" ON duplicate_reports FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+
+CREATE POLICY "Users can create own duplicate_reports" ON duplicate_reports FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+
+CREATE POLICY "Users can update own duplicate_reports" ON duplicate_reports FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+
+CREATE POLICY "Users can delete own duplicate_reports" ON duplicate_reports FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+
+CREATE POLICY "Service role full access to duplicate_reports" ON duplicate_reports TO service_role USING (true) WITH CHECK (true);
+
+
+CREATE POLICY "Tenant service full access to duplicate_reports" ON duplicate_reports TO tenant_service USING (true) WITH CHECK (true);
+
+
+--
+-- Privileges for duplicate_reports
+--
+
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE duplicate_reports TO authenticated;
+
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE duplicate_reports TO service_role;
+
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE duplicate_reports TO tenant_migration_role;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE duplicate_reports TO tenant_service;
