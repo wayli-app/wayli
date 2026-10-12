@@ -303,15 +303,15 @@
 	const mapPoints = $derived(activeTripId ? activeTripGpsPoints : []);
 	const mapMarkers = $derived(activeTripId ? [] : cityMarkers);
 
-	// Visited countries for world map. Source of truth is the visited-countries
-	// RPC (all tracker data with a ≥1h dwell rule — includes pending trips and
-	// countries the geocoder missed). Falls back to trip-metadata-derived codes
-	// until the cache has been built (empty RPC result, e.g. fresh account).
+	// Visited countries for world map. UNION of both sources — neither is a
+	// superset of the other: the visited-countries RPC covers tracker presence
+	// (≥1h dwell — misses sub-dwell stays and pre-tracker trips), trip
+	// metadata covers the rest (manual trips, layovers). Until the RPC
+	// resolves (null), only metadata codes render.
 	let trackedCountries = $state<string[] | null>(null); // null = not loaded yet
 
 	const visitedCountries = $derived.by(() => {
-		if (trackedCountries && trackedCountries.length > 0) return trackedCountries;
-		const codes = new Set<string>();
+		const codes = new Set<string>(trackedCountries ?? []);
 		for (const trip of trips) {
 			const meta = trip.metadata;
 			if (meta?.visitedCountryCodes) {
@@ -327,7 +327,7 @@
 	});
 
 	/** Load cached per-country presence (dwell ≥ 1h). Silent on failure — the
-	 *  metadata fallback above keeps the map populated. */
+	 *  metadata union above keeps the map populated. */
 	async function loadTrackedCountries() {
 		try {
 			const { data, error } = await (fluxbase.rpc as any).invoke(
