@@ -25,6 +25,7 @@ Privacy-first location tracking and trip analysis. Self-hosted, no third-party d
 - **Data Export** - Export everything in JSON or GeoJSON, and delete your account and data anytime from Account Settings
 - **Privacy-First Geocoding** - Uses [Pelias](https://pelias.io), an open-source geocoder, keeping location lookups off commercial services
 - **OwnTracks Integration** - Import location data from OwnTracks
+- **Duplicate Cleanup** - Detects overlapping recordings (e.g. a FIT/GPX import of a trip your tracker also recorded) and lets you review and remove the duplicated points, on import or across your whole history
 
 ## Screenshots
 
