@@ -17,8 +17,14 @@ import { parseStream as parseGPX } from './_shared/parsers/gpx-parser.ts';
 import { parseStream as parseKML } from './_shared/parsers/kml-parser.ts';
 import { parseStream as parseOwnTracks } from './_shared/parsers/owntracks-parser.ts';
 import {
+  detectForImport,
+  fetchUserParams,
+  writeReport
+} from './_shared/services/duplicate-detection.service.ts';
+import {
   safeReportProgress,
   waitForRpcCompletion,
+  resetIncrementalWatermarks,
   type ParseResult
 } from './_shared/utils/import-helpers.ts';
 
@@ -28,6 +34,13 @@ interface DataImportPayload {
   storagePath: string;
   format: string;
   fileName: string;
+}
+
+/** Included in the job result when the import overlaps existing recordings. */
+interface DuplicateFinding {
+  report_id: string;
+  section_count: number;
+  recommended_remove_count: number;
 }
 
 type FormatParser = (
@@ -122,6 +135,11 @@ export async function handler(
 
     safeReportProgress(job, 0, `Streaming ${format.toUpperCase()} data...`);
 
+    // One uuid per import run, stamped into every point's geocode.properties.
+    // This is the session identity duplicate detection (#274) uses to compare
+    // this file against everything already recorded.
+    const importId = crypto.randomUUID();
+
     // Parse the file using the format-specific parser
     const startTime = Date.now();
     const results = await parser(
@@ -131,7 +149,8 @@ export async function handler(
       fluxbase,
       job,
       startTime,
-      payload.fileName
+      payload.fileName,
+      importId
     );
 
     // Log final stats
@@ -151,6 +170,15 @@ export async function handler(
       await runPostImportTasks(fluxbase, fluxbaseService, job, context, userId);
     }
 
+    // Overlap detection (#274): never deletes anything — writes a reviewable
+    // duplicate_reports row and reports it in the job result so the UI can
+    // offer "Review duplicates". Best-effort: detection failure must not fail
+    // the import.
+    const duplicates =
+      results.importedCount > 0
+        ? await detectOverlappingRecordings(fluxbase, userId, importId, payload, job)
+        : undefined;
+
     // Clean up: remove the uploaded file from storage
     await cleanupUploadedFile(fluxbase, payload.storagePath);
 
@@ -159,44 +187,13 @@ export async function handler(
       result: {
         importedCount: results.importedCount,
         fileName: payload.fileName,
-        format: format.toUpperCase()
+        format: format.toUpperCase(),
+        duplicates
       }
     };
   } catch (error: unknown) {
     console.error(`Error in ${format.toUpperCase()} import job:`, error);
     throw error;
-  }
-}
-
-/**
- * Reset the per-user incremental-processing watermarks after an import.
- *
- * place-visit detection and transport-mode labeling each keep a
- * last-processed timestamp per user; an import typically backfills points
- * OLDER than that watermark, so without a reset those points would never be
- * picked up by the incremental jobs. Deleting the state rows (service role —
- * RLS allows only service/admin) forces the next incremental run to rebuild
- * that user from scratch. Best-effort: a failed reset must not fail the
- * import.
- */
-async function resetIncrementalWatermarks(
-  fluxbaseService: FluxbaseClient,
-  userId: string
-): Promise<void> {
-  for (const table of ['place_visits_state', 'transport_mode_state']) {
-    try {
-      const { error: resetError } = await fluxbaseService
-        .from(table)
-        .delete()
-        .eq('user_id', userId);
-      if (resetError) {
-        console.warn(`Failed to reset ${table} watermark for user ${userId}:`, resetError);
-      } else {
-        console.log(`Reset ${table} watermark for user ${userId}`);
-      }
-    } catch (resetErr) {
-      console.warn(`Error resetting ${table} watermark:`, resetErr);
-    }
   }
 }
 
@@ -211,7 +208,7 @@ async function runPostImportTasks(
   userId: string
 ): Promise<void> {
   // Late-arriving/imported points must be seen by the incremental jobs.
-  resetIncrementalWatermarks(fluxbaseService, userId);
+  await resetIncrementalWatermarks(fluxbaseService, userId);
 
   // Trigger distance calculation RPC
   console.log(`Triggering distance calculation RPC for user ${userId}...`);
@@ -269,6 +266,60 @@ async function runPostImportTasks(
     }
   } catch (geocodeQueueError) {
     console.warn(`Error queueing reverse geocoding job:`, geocodeQueueError);
+  }
+}
+
+/**
+ * Overlap detection (#274): compares the freshly-imported session against
+ * everything already recorded (live tracker feed, earlier imports) and stores
+ * a reviewable duplicate_reports row when sections overlap. Detection is a
+ * suggestion, not an action — the user reviews the report (import banner →
+ * DuplicateReview modal) before the duplicate-cleanup job removes anything.
+ */
+async function detectOverlappingRecordings(
+  fluxbase: FluxbaseClient,
+  userId: string,
+  importId: string,
+  payload: DataImportPayload,
+  job: JobUtils
+): Promise<DuplicateFinding | undefined> {
+  try {
+    safeReportProgress(job, 95, 'Checking for overlapping recordings...');
+
+    // The user's tuned thresholds (data editor → Find duplicates → detection
+    // sensitivity) apply to import-time detection too; defaults until tuned.
+    const params = await fetchUserParams(fluxbase, userId);
+    const draft = await detectForImport(
+      fluxbase,
+      importId,
+      {
+        format: (payload.format || '').toUpperCase(),
+        file_name: payload.fileName
+      },
+      params
+    );
+    if (!draft) return undefined;
+
+    const reportId = await writeReport(fluxbase, userId, draft);
+    console.log(
+      `Overlapping recordings found: ${draft.summary.section_count} section(s), ` +
+        `${draft.summary.recommended_remove_count} point(s) recommended for removal ` +
+        `(report ${reportId})`
+    );
+    safeReportProgress(
+      job,
+      100,
+      `Import complete — ${draft.summary.section_count} overlapping section(s) found`
+    );
+
+    return {
+      report_id: reportId,
+      section_count: draft.summary.section_count,
+      recommended_remove_count: draft.summary.recommended_remove_count
+    };
+  } catch (err) {
+    console.warn('Duplicate detection failed (import result unaffected):', err);
+    return undefined;
   }
 }
 

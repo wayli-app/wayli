@@ -5,9 +5,13 @@
  */
 
 import { writable, get, derived } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { browser } from '$app/environment';
 import { fluxbase } from '$lib/fluxbase';
 import type { RealtimeChannel, ExecutionLogsChannel } from '@nimbleflux/fluxbase-sdk';
+import { toast } from 'svelte-sonner';
 import { createNotification } from '$lib/services/notifications.service';
+import { t } from '$lib/i18n';
 import { refreshUnread } from '$lib/stores/notifications';
 
 // RPC Execution type (mirrors SDK's RPCExecution interface)
@@ -119,12 +123,69 @@ function jobDisplayName(jobName: string): string {
 		detect_transport_mode: 'Transport mode detection',
 		refresh_daily_activity: 'Daily activity refresh',
 		polarsteps_import: 'Polarsteps import',
-		immich_sync: 'Immich photo sync'
+		immich_sync: 'Immich photo sync',
+		duplicate_scan: 'Duplicate scan',
+		duplicate_cleanup: 'Duplicate cleanup'
 	};
 	// Allow prefix matching (data-import-* variants use underscores in some
 	// places, hyphens in others).
 	const normalized = jobName.replace(/-/g, '_');
 	return names[normalized] ?? names[jobName] ?? jobName;
+}
+
+/**
+ * Dedicated completion surface for duplicate cleanup (#274): a toast with
+ * the outcome plus a jump into the data editor — on top of the standard bell
+ * notification, which only carries the progress text.
+ *
+ * Counts come from the duplicate_reports row (the cleanup job writes its
+ * summary before completing). The queue row's own `result` column does not
+ * survive the jobs GET API (it round-trips as "{}"), so it can't be trusted.
+ */
+async function notifyDuplicateCleanupCompleted(job: JobStoreJob): Promise<void> {
+	if (!browser) return;
+
+	let payload = job.payload as unknown;
+	if (typeof payload === 'string') {
+		try {
+			payload = JSON.parse(payload);
+		} catch {
+			payload = {};
+		}
+	}
+	const reportId = (payload as { report_id?: string } | null)?.report_id;
+
+	let removed = 0;
+	let sections = 0;
+	if (reportId) {
+		try {
+			const { data } = await fluxbase
+				.from('duplicate_reports')
+				.select('summary')
+				.eq('id', reportId)
+				.maybeSingle();
+			const summary = (
+				data as { summary?: { removed_count?: number; section_count?: number } } | null
+			)?.summary;
+			removed = Number(summary?.removed_count ?? 0);
+			sections = Number(summary?.section_count ?? 0);
+		} catch (err) {
+			console.warn('[JobStore] Failed to load duplicate report summary for toast:', err);
+		}
+	}
+
+	if (removed > 0) {
+		toast.success(t('duplicates.cleanupCompletedToast', { count: removed, sections }), {
+			description: t('duplicates.cleanupCompletedHint'),
+			action: {
+				label: t('duplicates.openDataEditor'),
+				onClick: () => goto('/dashboard/data-editor')
+			},
+			duration: 10000
+		});
+	} else {
+		toast.info(t('duplicates.cleanupNothingToast'));
+	}
 }
 
 /**
@@ -143,6 +204,13 @@ function notifyTerminalJob(job: JobStoreJob): void {
 					: null;
 	if (!type) return;
 
+	// Realtime job names arrive with hyphens ('duplicate-cleanup'); the
+	// display map normalizes, and so must every direct comparison.
+	const normalizedName = job.job_name.replace(/-/g, '_');
+	if (normalizedName === 'duplicate_cleanup' && job.status === 'completed') {
+		void notifyDuplicateCleanupCompleted(job);
+	}
+
 	const name = jobDisplayName(job.job_name);
 	const title =
 		type === 'job_completed'
@@ -151,10 +219,18 @@ function notifyTerminalJob(job: JobStoreJob): void {
 				? `${name} failed`
 				: `${name} cancelled`;
 	const body = job.error_message || (type === 'job_completed' ? job.progress_message : '') || '';
-	// Data exports get a deep link so the user can re-download from the popover.
+	// Deep links: exports re-download from the import page; a finished
+	// duplicate cleanup lands in the data editor where the sections lived; a
+	// finished import points at the banner that offers "Review duplicates".
 	const link =
-		job.job_name === 'data_export' && job.status === 'completed'
-			? '/dashboard/import-export'
+		job.status === 'completed'
+			? normalizedName === 'data_export'
+				? '/dashboard/import-export'
+				: normalizedName === 'duplicate_cleanup'
+					? '/dashboard/data-editor'
+					: normalizedName === 'data_import'
+						? '/dashboard/import-export'
+						: null
 			: null;
 
 	// notifications.user_id is NOT NULL; prefer the module-scoped currentUserId

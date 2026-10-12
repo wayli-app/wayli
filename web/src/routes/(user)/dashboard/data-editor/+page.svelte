@@ -21,12 +21,27 @@
 		Home,
 		X,
 		Plus,
-		ScatterChart
+		ScatterChart,
+		Copy,
+		ChevronDown
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { translate } from '$lib/i18n';
 	import { TRANSPORT_MODE_COLORS } from '$lib/utils/colors';
 	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
+	import DuplicateReviewModal from '$lib/components/DuplicateReviewModal.svelte';
+	import { jobCreationService } from '$lib/services/job-creation.service';
+	import {
+		clampParams,
+		DEFAULT_DUPLICATE_PARAMS,
+		dismissDuplicateReport,
+		getDuplicateParams,
+		listDuplicateReports,
+		PARAM_LIMITS,
+		type DuplicateParams,
+		type DuplicateReport
+	} from '$lib/services/duplicates.service';
+	import { allJobs } from '$lib/stores/job-store';
 
 	type SelectedPoint = DataPoint & { selected: boolean; excluded: boolean };
 
@@ -85,6 +100,7 @@
 
 		L = await import('leaflet');
 		if (destroyed) return;
+		loadPendingDuplicates();
 		await loadData();
 		if (destroyed) return;
 		initMap();
@@ -773,6 +789,64 @@
 		refreshData();
 	}
 
+	// ── Duplicate scan (#274) ──
+	let showScanModal = $state(false);
+	let scanAllHistory = $state(false);
+	let isScanStarting = $state(false);
+	let pendingDuplicates = $state<DuplicateReport[]>([]);
+	let reviewingDuplicate = $state<DuplicateReport | null>(null);
+
+	// Detection-sensitivity tuning (advanced section of the scan dialog).
+	// Values load from the user's saved thresholds when the dialog opens;
+	// starting a scan persists them as the new defaults (imports use them too).
+	let showAdvanced = $state(false);
+	let scanParams = $state<DuplicateParams>({ ...DEFAULT_DUPLICATE_PARAMS });
+
+	async function loadPendingDuplicates() {
+		try {
+			pendingDuplicates = await listDuplicateReports('pending_review');
+		} catch (err) {
+			console.error('Failed to load duplicate reports:', err);
+		}
+	}
+
+	async function openScanModal() {
+		showScanModal = true;
+		scanParams = await getDuplicateParams();
+	}
+
+	async function startDuplicateScan() {
+		if (isScanStarting) return;
+		isScanStarting = true;
+		try {
+			await jobCreationService.createDuplicateScanJob(
+				scanAllHistory ? undefined : startDate,
+				scanAllHistory ? undefined : endDate,
+				clampParams(scanParams)
+			);
+			toast.success(t('duplicates.scanStarted'));
+			showScanModal = false;
+		} catch (err) {
+			console.error('Failed to start duplicate scan:', err);
+			toast.error(t('duplicates.scanStartFailed'));
+		} finally {
+			isScanStarting = false;
+		}
+	}
+
+	// A duplicate-scan can produce a new report, a duplicate-cleanup resolves
+	// one — refresh the panel list when either finishes.
+	let seenDuplicateJobs = new Set<string>();
+	$effect(() => {
+		for (const job of $allJobs) {
+			if (job.status !== 'completed' || seenDuplicateJobs.has(job.id)) continue;
+			if (job.job_name === 'duplicate-scan' || job.job_name === 'duplicate-cleanup') {
+				seenDuplicateJobs.add(job.id);
+				loadPendingDuplicates();
+			}
+		}
+	});
+
 	const selectedPoints = $derived(allPoints.filter((p) => p.selected));
 </script>
 
@@ -860,6 +934,15 @@
 			>
 				<ScatterChart class="h-3 w-3" />
 				{t('dataEditor.sample')}
+			</button>
+			<button
+				type="button"
+				onclick={openScanModal}
+				class="border-border text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
+				title={t('duplicates.scanTitle')}
+			>
+				<Copy class="h-3 w-3" />
+				{t('duplicates.scanButton')}
 			</button>
 		</div>
 
@@ -1037,6 +1120,42 @@
 			{/if}
 		</div>
 
+		<!-- Possible duplicates (#274) -->
+		{#if pendingDuplicates.length > 0}
+			<div class="border-border border-b p-4">
+				<div class="text-muted-foreground mb-2 flex items-center gap-1.5 text-xs font-medium">
+					<Copy class="h-3 w-3" />
+					{t('duplicates.pendingReports').replace('{count}', String(pendingDuplicates.length))}
+				</div>
+				<div class="space-y-2">
+					{#each pendingDuplicates as report (report.id)}
+						<div class="border-border flex items-center gap-2 rounded-lg border px-3 py-2">
+							<div class="min-w-0 flex-1">
+								<div class="text-foreground truncate text-xs font-medium">
+									{report.source?.file_name ?? t('duplicates.bannerTitleScan')}
+								</div>
+								<div class="text-muted-foreground text-[10px]">
+									{t('duplicates.bannerDescription')
+										.replace(
+											'{sections}',
+											String(report.summary?.section_count ?? report.clusters?.length ?? 0)
+										)
+										.replace('{points}', String(report.summary?.recommended_remove_count ?? 0))}
+								</div>
+							</div>
+							<button
+								type="button"
+								onclick={() => (reviewingDuplicate = report)}
+								class="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 rounded-md px-2.5 py-1 text-xs font-medium"
+							>
+								{t('duplicates.review')}
+							</button>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
 		<!-- Point edit panel -->
 		{#if editingPoint}
 			<div class="border-border border-t p-4">
@@ -1192,6 +1311,105 @@
 			</div>
 		</div>
 	</div>
+{/if}
+
+<!-- Duplicate scan modal (#274) -->
+{#if showScanModal}
+	<div
+		class="bg-background/80 fixed inset-0 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm"
+	>
+		<div class="border-border bg-card w-full max-w-md rounded-2xl border p-6 shadow-2xl">
+			<h2 class="text-foreground mb-2 text-lg font-bold">{t('duplicates.scanTitle')}</h2>
+			<p class="text-muted-foreground mb-4 text-sm">{t('duplicates.scanDescription')}</p>
+
+			<label class="border-border mb-4 flex items-center gap-2 rounded-lg border p-3">
+				<input type="checkbox" bind:checked={scanAllHistory} class="accent-primary h-4 w-4" />
+				<span class="text-foreground text-sm">{t('duplicates.scanAllHistory')}</span>
+			</label>
+			{#if !scanAllHistory}
+				<div class="bg-muted/50 text-muted-foreground mb-4 rounded-lg p-3 text-xs">
+					{new Date(startDate).toLocaleDateString()} → {new Date(endDate).toLocaleDateString()}
+				</div>
+			{/if}
+
+			<!-- Detection-sensitivity tuning: saved with the scan and applied to
+			     future scans and import-time checks alike. -->
+			<div class="border-border mb-4 rounded-lg border">
+				<button
+					type="button"
+					onclick={() => (showAdvanced = !showAdvanced)}
+					class="flex w-full items-center justify-between px-3 py-2.5 text-left"
+				>
+					<span class="text-foreground text-sm font-medium">
+						{t('duplicates.advancedTitle')}
+					</span>
+					<ChevronDown
+						class="text-muted-foreground h-4 w-4 transition-transform {showAdvanced
+							? 'rotate-180'
+							: ''}"
+					/>
+				</button>
+				{#if showAdvanced}
+					<div class="border-border space-y-3 border-t p-3">
+						<p class="text-muted-foreground text-xs">{t('duplicates.advancedHint')}</p>
+						{#each [{ key: 'time_window_s', label: t('duplicates.thresholdTimeWindow'), limit: PARAM_LIMITS.time_window_s }, { key: 'distance_m', label: t('duplicates.thresholdDistance'), limit: PARAM_LIMITS.distance_m }, { key: 'merge_gap_min', label: t('duplicates.thresholdMergeGap'), limit: PARAM_LIMITS.merge_gap_min }, { key: 'min_pairs', label: t('duplicates.thresholdMinPairs'), limit: PARAM_LIMITS.min_pairs }] as field (field.key)}
+							<label class="block">
+								<span class="text-foreground mb-0.5 block text-xs font-medium">
+									{field.label}
+								</span>
+								<div class="flex items-center gap-2">
+									<input
+										type="number"
+										min={field.limit.min}
+										max={field.limit.max}
+										bind:value={scanParams[field.key as keyof DuplicateParams]}
+										class="border-border focus:ring-primary w-24 rounded-lg border bg-transparent px-2 py-1.5 text-sm focus:ring-2 focus:outline-none"
+									/>
+									<span class="text-muted-foreground text-[10px]">
+										{field.limit.min}–{field.limit.max}
+									</span>
+								</div>
+							</label>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<div class="flex justify-end gap-2">
+				<button
+					type="button"
+					onclick={() => (showScanModal = false)}
+					class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium"
+				>
+					{t('common.actions.cancel')}
+				</button>
+				<button
+					type="button"
+					onclick={startDuplicateScan}
+					disabled={isScanStarting}
+					class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+				>
+					{#if isScanStarting}
+						<Loader2 class="h-4 w-4 animate-spin" />
+					{/if}
+					{t('duplicates.scanStart')}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Duplicate review modal (#274) -->
+{#if reviewingDuplicate}
+	<DuplicateReviewModal
+		report={reviewingDuplicate}
+		onclose={() => (reviewingDuplicate = null)}
+		onSettled={(reportId) => {
+			pendingDuplicates = pendingDuplicates.filter((r) => r.id !== reportId);
+			reviewingDuplicate = null;
+			loadPendingDuplicates();
+		}}
+	/>
 {/if}
 
 <!-- Sample modal -->
