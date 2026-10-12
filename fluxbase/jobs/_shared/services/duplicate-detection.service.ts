@@ -35,6 +35,97 @@ export const DEFAULT_DUPLICATE_PARAMS: DuplicateParams = {
 	min_pairs: 8
 };
 
+/** Hard bounds for user-tuned thresholds — the UI clamps for feedback, the
+ * backend clamps for authority (stored prefs may hold anything). */
+export const PARAM_LIMITS: Record<keyof DuplicateParams, { min: number; max: number }> = {
+	time_window_s: { min: 30, max: 600 },
+	distance_m: { min: 50, max: 500 },
+	merge_gap_min: { min: 2, max: 60 },
+	min_pairs: { min: 3, max: 100 }
+};
+
+/**
+ * Merge a (possibly partial/garbage) threshold object onto the defaults,
+ * coercing and clamping every field into PARAM_LIMITS. Fields that are
+ * missing or not finite numbers fall back to their default.
+ */
+export function clampParams(partial: unknown): DuplicateParams {
+	const source = (partial ?? {}) as Record<string, unknown>;
+	const merged = { ...DEFAULT_DUPLICATE_PARAMS };
+	for (const key of Object.keys(DEFAULT_DUPLICATE_PARAMS) as Array<keyof DuplicateParams>) {
+		const raw = source[key];
+		// Number(null)/Number(false) are 0 — treat anything but numbers and
+		// numeric strings as "not set" so it falls back to the default.
+		if (raw === null || raw === undefined || raw === '' || typeof raw === 'boolean') continue;
+		const num = Number(raw);
+		if (Number.isFinite(num)) {
+			const limit = PARAM_LIMITS[key];
+			merged[key] = Math.min(limit.max, Math.max(limit.min, Math.round(num)));
+		}
+	}
+	return merged;
+}
+
+/**
+ * The caller's tuned thresholds (user_preferences.preferences.
+ * duplicate_detection), falling back to the defaults when nothing was saved
+ * yet. Best-effort: a failed read must not break detection.
+ */
+export async function fetchUserParams(
+	fluxbase: FluxbaseClient,
+	userId: string
+): Promise<DuplicateParams> {
+	try {
+		const { data } = await fluxbase
+			.from('user_preferences')
+			.select('preferences')
+			.eq('id', userId)
+			.maybeSingle();
+		const prefs = (data as { preferences?: { duplicate_detection?: unknown } } | null)
+			?.preferences;
+		return clampParams(prefs?.duplicate_detection);
+	} catch (err) {
+		console.warn('Failed to read duplicate-detection preferences, using defaults:', err);
+		return { ...DEFAULT_DUPLICATE_PARAMS };
+	}
+}
+
+/**
+ * Persist tuned thresholds under user_preferences.preferences.
+ * duplicate_detection. Read-modify-write on the whole preferences JSONB so
+ * sibling keys (e.g. onboarding_checklist) survive, with an upsert fallback
+ * for users whose row doesn't exist yet. Caller-scoped (RLS) — a user can
+ * only ever write their own row.
+ */
+export async function saveUserParams(
+	fluxbase: FluxbaseClient,
+	userId: string,
+	params: DuplicateParams
+): Promise<void> {
+	const { data } = await fluxbase
+		.from('user_preferences')
+		.select('preferences')
+		.eq('id', userId)
+		.maybeSingle();
+	const preferences = ((data as { preferences?: Record<string, unknown> } | null)?.preferences ??
+		{}) as Record<string, unknown>;
+	const merged = { ...preferences, duplicate_detection: params };
+
+	const { data: updated, error } = await fluxbase
+		.from('user_preferences')
+		.update({ preferences: merged })
+		.eq('id', userId)
+		.select('id');
+	if (!error && updated && (updated as unknown[]).length > 0) return;
+
+	const { error: upsertError } = await fluxbase
+		.from('user_preferences')
+		.upsert({ id: userId, preferences: merged });
+	if (upsertError) {
+		console.warn(`Failed to save duplicate-detection preferences: ${upsertError.message}`);
+	}
+}
+
 export type SessionKind = 'import' | 'device' | 'legacy' | 'other';
 
 export interface DuplicateSideStats {

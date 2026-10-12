@@ -1604,7 +1604,17 @@
     "scanStart": "検索を開始",
     "scanStarted": "検索を開始しました — 完了時にお知らせします",
     "scanStartFailed": "検索を開始できませんでした",
-    "pendingReports": "重複の可能性 ({count})"
+    "pendingReports": "重複の可能性 ({count})",
+    "cleanupCompletedToast": "クリーンアップ完了 — {sections} セクションの重複 {count} 点を削除しました",
+    "cleanupCompletedHint": "対象日の距離と統計は更新されました。",
+    "cleanupNothingToast": "クリーンアップ完了 — 削除の必要はありませんでした",
+    "openDataEditor": "データエディタを開く",
+    "advancedTitle": "検出感度",
+    "advancedHint": "重複検出の厳密さ：値が大きいほど確実性の高いセクションのみを検出します。スキャン時に保存され、今後のインポートにも適用されます。",
+    "thresholdTimeWindow": "時間ウィンドウ（秒）",
+    "thresholdDistance": "一致距離（メートル）",
+    "thresholdMergeGap": "統合ギャップ（分）",
+    "thresholdMinPairs": "セクションあたりの最小一致数"
   },
 
   "dataEditor": {

@@ -12,8 +12,10 @@ import { describe, expect, it } from 'vitest';
 import {
 	buildClusters,
 	buildSummary,
+	clampParams,
 	DEFAULT_DUPLICATE_PARAMS,
 	monthWindows,
+	PARAM_LIMITS,
 	parseSessionKey,
 	qualityScore,
 	recommendKeep,
@@ -279,5 +281,42 @@ describe('monthWindows', () => {
 		expect(
 			monthWindows(new Date('2026-06-03T00:00:00Z'), new Date('2026-06-20T00:00:00Z'))
 		).toHaveLength(1);
+	});
+});
+
+describe('clampParams', () => {
+	it('returns the defaults for null/undefined/partial input', () => {
+		expect(clampParams(null)).toEqual(DEFAULT_DUPLICATE_PARAMS);
+		expect(clampParams(undefined)).toEqual(DEFAULT_DUPLICATE_PARAMS);
+		expect(clampParams({})).toEqual(DEFAULT_DUPLICATE_PARAMS);
+		expect(clampParams({ distance_m: 300 })).toEqual({
+			...DEFAULT_DUPLICATE_PARAMS,
+			distance_m: 300
+		});
+	});
+
+	it('coerces numeric strings and rounds fractions', () => {
+		expect(clampParams({ time_window_s: '240', min_pairs: 7.6 })).toEqual({
+			...DEFAULT_DUPLICATE_PARAMS,
+			time_window_s: 240,
+			min_pairs: 8
+		});
+	});
+
+	it('clamps every field into its hard bounds', () => {
+		expect(
+			clampParams({ time_window_s: 5, distance_m: 9999, merge_gap_min: 0, min_pairs: 1e9 })
+		).toEqual({
+			time_window_s: PARAM_LIMITS.time_window_s.min,
+			distance_m: PARAM_LIMITS.distance_m.max,
+			merge_gap_min: PARAM_LIMITS.merge_gap_min.min,
+			min_pairs: PARAM_LIMITS.min_pairs.max
+		});
+	});
+
+	it('ignores non-finite values instead of producing NaN thresholds', () => {
+		expect(clampParams({ time_window_s: 'abc', distance_m: NaN, merge_gap_min: null })).toEqual(
+			DEFAULT_DUPLICATE_PARAMS
+		);
 	});
 });

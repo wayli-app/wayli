@@ -1604,7 +1604,17 @@
     "scanStart": "검색 시작",
     "scanStarted": "검색이 시작되었습니다 — 완료되면 알려드립니다",
     "scanStartFailed": "검색을 시작할 수 없습니다",
-    "pendingReports": "중복 가능성 ({count})"
+    "pendingReports": "중복 가능성 ({count})",
+    "cleanupCompletedToast": "정리 완료 — {sections}개 구간에서 중복 지점 {count}개를 삭제했습니다",
+    "cleanupCompletedHint": "해당 날짜의 거리와 통계가 새로 고쳐졌습니다.",
+    "cleanupNothingToast": "정리 완료 — 삭제할 항목이 없었습니다",
+    "openDataEditor": "데이터 편집기 열기",
+    "advancedTitle": "감지 민감도",
+    "advancedHint": "중복 감지의 엄격함: 값이 클수록 더 확실한 구간만 찾습니다. 스캔 시 저장되며 이후 가져오기에도 적용됩니다.",
+    "thresholdTimeWindow": "시간 창(초)",
+    "thresholdDistance": "일치 거리(미터)",
+    "thresholdMergeGap": "병합 간격(분)",
+    "thresholdMinPairs": "구간당 최소 일치 수"
   },
 
   "dataEditor": {

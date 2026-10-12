@@ -6,7 +6,7 @@
 
 import { fluxbase } from '$lib/fluxbase';
 import { addJobToStore } from '$lib/stores/job-store';
-import type { KeepDecision } from '$lib/services/duplicates.service';
+import type { DuplicateParams, KeepDecision } from '$lib/services/duplicates.service';
 import {
 	startUpload,
 	updateUploadProgress,
@@ -246,11 +246,13 @@ class JobCreationService {
 	/**
 	 * Create a historical duplicate scan (#274): walks the recording history in
 	 * month windows and writes one reviewable duplicate_reports row. Absent
-	 * dates scan the full history.
+	 * dates scan the full history. When `params` is given, the scan job clamps
+	 * and persists them as the user's new detection-sensitivity defaults.
 	 */
 	async createDuplicateScanJob(
 		startDate?: Date | string,
-		endDate?: Date | string
+		endDate?: Date | string,
+		params?: DuplicateParams
 	): Promise<JobResult> {
 		const toISODate = (d: Date | string | undefined): string | undefined => {
 			if (!d) return undefined;
@@ -262,7 +264,8 @@ class JobCreationService {
 			type: 'duplicate-scan',
 			data: {
 				start_date: toISODate(startDate),
-				end_date: toISODate(endDate)
+				end_date: toISODate(endDate),
+				params
 			}
 		});
 	}

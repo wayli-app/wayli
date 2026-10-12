@@ -1604,7 +1604,17 @@
     "scanStart": "Start scan",
     "scanStarted": "Scan started — you'll be notified when it's done",
     "scanStartFailed": "Couldn't start the scan",
-    "pendingReports": "Possible duplicates ({count})"
+    "pendingReports": "Possible duplicates ({count})",
+    "cleanupCompletedToast": "Cleanup complete — {count} duplicate points removed across {sections} section(s)",
+    "cleanupCompletedHint": "Distances and statistics for the affected days were refreshed.",
+    "cleanupNothingToast": "Cleanup complete — nothing needed to be removed",
+    "openDataEditor": "Open data editor",
+    "advancedTitle": "Detection sensitivity",
+    "advancedHint": "How strictly duplicates are detected: higher values find fewer, more certain sections. Saved with the scan and applied to future imports too.",
+    "thresholdTimeWindow": "Time window (seconds)",
+    "thresholdDistance": "Match distance (meters)",
+    "thresholdMergeGap": "Merge gap (minutes)",
+    "thresholdMinPairs": "Minimum matches per section"
   },
 
   "dataEditor": {

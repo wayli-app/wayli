@@ -62,6 +62,76 @@ export interface DuplicateReport {
 
 export type KeepDecision = { cluster_id: string; keep: Exclude<DuplicateDecision, 'skip'> };
 
+// ============================================================================
+// Detection thresholds (tuning)
+// ============================================================================
+
+export interface DuplicateParams {
+	/** Max |Δt| for two points to be considered the same moment (seconds). */
+	time_window_s: number;
+	/** Base match distance in meters; widened by the pair's GPS accuracy. */
+	distance_m: number;
+	/** Matches closer together than this merge into one section (minutes). */
+	merge_gap_min: number;
+	/** Sections with fewer matched pairs than this are noise, not duplicates. */
+	min_pairs: number;
+}
+
+export const DEFAULT_DUPLICATE_PARAMS: DuplicateParams = {
+	time_window_s: 180,
+	distance_m: 150,
+	merge_gap_min: 10,
+	min_pairs: 8
+};
+
+/** Mirrors PARAM_LIMITS in the backend detection service (authoritative). */
+export const PARAM_LIMITS: Record<keyof DuplicateParams, { min: number; max: number }> = {
+	time_window_s: { min: 30, max: 600 },
+	distance_m: { min: 50, max: 500 },
+	merge_gap_min: { min: 2, max: 60 },
+	min_pairs: { min: 3, max: 100 }
+};
+
+/** Client-side mirror of the backend clampParams (input UX; the scan job
+ * clamps with authority before persisting). */
+export function clampParams(partial: unknown): DuplicateParams {
+	const source = (partial ?? {}) as Record<string, unknown>;
+	const merged = { ...DEFAULT_DUPLICATE_PARAMS };
+	for (const key of Object.keys(DEFAULT_DUPLICATE_PARAMS) as Array<keyof DuplicateParams>) {
+		const raw = source[key];
+		if (raw === null || raw === undefined || raw === '' || typeof raw === 'boolean') continue;
+		const num = Number(raw);
+		if (Number.isFinite(num)) {
+			const limit = PARAM_LIMITS[key];
+			merged[key] = Math.min(limit.max, Math.max(limit.min, Math.round(num)));
+		}
+	}
+	return merged;
+}
+
+/**
+ * The user's saved thresholds (user_preferences.preferences.
+ * duplicate_detection), falling back to the defaults when untuned.
+ */
+export async function getDuplicateParams(): Promise<DuplicateParams> {
+	try {
+		const { data: userData } = await fluxbase.auth.getUser();
+		const userId = userData?.user?.id;
+		if (!userId) return { ...DEFAULT_DUPLICATE_PARAMS };
+
+		const { data } = await fluxbase
+			.from('user_preferences')
+			.select('preferences')
+			.eq('id', userId)
+			.maybeSingle();
+		const prefs = (data as { preferences?: { duplicate_detection?: unknown } } | null)?.preferences;
+		return clampParams(prefs?.duplicate_detection);
+	} catch (err) {
+		console.error('Failed to read duplicate-detection thresholds:', err);
+		return { ...DEFAULT_DUPLICATE_PARAMS };
+	}
+}
+
 export async function listDuplicateReports(
 	status: DuplicateReport['status'] = 'pending_review',
 	limit = 20

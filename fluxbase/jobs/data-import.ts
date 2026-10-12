@@ -18,6 +18,7 @@ import { parseStream as parseKML } from './_shared/parsers/kml-parser.ts';
 import { parseStream as parseOwnTracks } from './_shared/parsers/owntracks-parser.ts';
 import {
   detectForImport,
+  fetchUserParams,
   writeReport
 } from './_shared/services/duplicate-detection.service.ts';
 import {
@@ -285,10 +286,18 @@ async function detectOverlappingRecordings(
   try {
     safeReportProgress(job, 95, 'Checking for overlapping recordings...');
 
-    const draft = await detectForImport(fluxbase, importId, {
-      format: (payload.format || '').toUpperCase(),
-      file_name: payload.fileName
-    });
+    // The user's tuned thresholds (data editor → Find duplicates → detection
+    // sensitivity) apply to import-time detection too; defaults until tuned.
+    const params = await fetchUserParams(fluxbase, userId);
+    const draft = await detectForImport(
+      fluxbase,
+      importId,
+      {
+        format: (payload.format || '').toUpperCase(),
+        file_name: payload.fileName
+      },
+      params
+    );
     if (!draft) return undefined;
 
     const reportId = await writeReport(fluxbase, userId, draft);

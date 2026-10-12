@@ -5,9 +5,13 @@
  */
 
 import { writable, get, derived } from 'svelte/store';
+import { goto } from '$app/navigation';
+import { browser } from '$app/environment';
 import { fluxbase } from '$lib/fluxbase';
 import type { RealtimeChannel, ExecutionLogsChannel } from '@nimbleflux/fluxbase-sdk';
+import { toast } from 'svelte-sonner';
 import { createNotification } from '$lib/services/notifications.service';
+import { t } from '$lib/i18n';
 import { refreshUnread } from '$lib/stores/notifications';
 
 // RPC Execution type (mirrors SDK's RPCExecution interface)
@@ -130,6 +134,35 @@ function jobDisplayName(jobName: string): string {
 }
 
 /**
+ * Dedicated completion surface for duplicate cleanup (#274): a toast with
+ * the outcome plus a jump into the data editor — on top of the standard bell
+ * notification, which only carries the progress text.
+ */
+function notifyDuplicateCleanupCompleted(job: JobStoreJob): void {
+	if (!browser) return;
+	const result = (job.result ?? {}) as {
+		removed_count?: number;
+		sections_applied?: number;
+		dismissed?: boolean;
+	};
+	const removed = Number(result.removed_count ?? 0);
+	const sections = Number(result.sections_applied ?? 0);
+
+	if (removed > 0) {
+		toast.success(t('duplicates.cleanupCompletedToast', { count: removed, sections }), {
+			description: t('duplicates.cleanupCompletedHint'),
+			action: {
+				label: t('duplicates.openDataEditor'),
+				onClick: () => goto('/dashboard/data-editor')
+			},
+			duration: 10000
+		});
+	} else {
+		toast.info(t('duplicates.cleanupNothingToast'));
+	}
+}
+
+/**
  * When a job transitions into a terminal state, persist a notification so the
  * user sees the outcome even after the transient job-state window closes.
  * Best-effort and fire-and-forget (see createNotification).
@@ -145,6 +178,10 @@ function notifyTerminalJob(job: JobStoreJob): void {
 					: null;
 	if (!type) return;
 
+	if (job.job_name === 'duplicate_cleanup' && job.status === 'completed') {
+		notifyDuplicateCleanupCompleted(job);
+	}
+
 	const name = jobDisplayName(job.job_name);
 	const title =
 		type === 'job_completed'
@@ -153,10 +190,14 @@ function notifyTerminalJob(job: JobStoreJob): void {
 				? `${name} failed`
 				: `${name} cancelled`;
 	const body = job.error_message || (type === 'job_completed' ? job.progress_message : '') || '';
-	// Data exports get a deep link so the user can re-download from the popover.
+	// Deep links: exports re-download from the import page; a finished
+	// duplicate cleanup lands in the data editor where the sections lived.
 	const link =
-		job.job_name === 'data_export' && job.status === 'completed'
-			? '/dashboard/import-export'
+		job.status === 'completed' &&
+		(job.job_name === 'data_export' || job.job_name === 'duplicate_cleanup')
+			? job.job_name === 'data_export'
+				? '/dashboard/import-export'
+				: '/dashboard/data-editor'
 			: null;
 
 	// notifications.user_id is NOT NULL; prefer the module-scoped currentUserId

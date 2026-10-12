@@ -1604,7 +1604,17 @@
     "scanStart": "开始扫描",
     "scanStarted": "扫描已开始——完成后会通知你",
     "scanStartFailed": "无法开始扫描",
-    "pendingReports": "可能的重复 ({count})"
+    "pendingReports": "可能的重复 ({count})",
+    "cleanupCompletedToast": "清理完成 — 已在 {sections} 个区段中移除 {count} 个重复点",
+    "cleanupCompletedHint": "相关日期的距离和统计信息已刷新。",
+    "cleanupNothingToast": "清理完成 — 无需移除任何内容",
+    "openDataEditor": "打开数据编辑器",
+    "advancedTitle": "检测灵敏度",
+    "advancedHint": "检测重复的严格程度：数值越高，找到的区段越少但越确定。随扫描保存，同样适用于之后的导入。",
+    "thresholdTimeWindow": "时间窗口（秒）",
+    "thresholdDistance": "匹配距离（米）",
+    "thresholdMergeGap": "合并间隔（分钟）",
+    "thresholdMinPairs": "每个区段的最小匹配数"
   },
 
   "dataEditor": {

@@ -22,7 +22,8 @@
 		X,
 		Plus,
 		ScatterChart,
-		Copy
+		Copy,
+		ChevronDown
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { translate } from '$lib/i18n';
@@ -31,8 +32,13 @@
 	import DuplicateReviewModal from '$lib/components/DuplicateReviewModal.svelte';
 	import { jobCreationService } from '$lib/services/job-creation.service';
 	import {
+		clampParams,
+		DEFAULT_DUPLICATE_PARAMS,
 		dismissDuplicateReport,
+		getDuplicateParams,
 		listDuplicateReports,
+		PARAM_LIMITS,
+		type DuplicateParams,
 		type DuplicateReport
 	} from '$lib/services/duplicates.service';
 	import { allJobs } from '$lib/stores/job-store';
@@ -790,6 +796,12 @@
 	let pendingDuplicates = $state<DuplicateReport[]>([]);
 	let reviewingDuplicate = $state<DuplicateReport | null>(null);
 
+	// Detection-sensitivity tuning (advanced section of the scan dialog).
+	// Values load from the user's saved thresholds when the dialog opens;
+	// starting a scan persists them as the new defaults (imports use them too).
+	let showAdvanced = $state(false);
+	let scanParams = $state<DuplicateParams>({ ...DEFAULT_DUPLICATE_PARAMS });
+
 	async function loadPendingDuplicates() {
 		try {
 			pendingDuplicates = await listDuplicateReports('pending_review');
@@ -798,13 +810,19 @@
 		}
 	}
 
+	async function openScanModal() {
+		showScanModal = true;
+		scanParams = await getDuplicateParams();
+	}
+
 	async function startDuplicateScan() {
 		if (isScanStarting) return;
 		isScanStarting = true;
 		try {
 			await jobCreationService.createDuplicateScanJob(
 				scanAllHistory ? undefined : startDate,
-				scanAllHistory ? undefined : endDate
+				scanAllHistory ? undefined : endDate,
+				clampParams(scanParams)
 			);
 			toast.success(t('duplicates.scanStarted'));
 			showScanModal = false;
@@ -919,7 +937,7 @@
 			</button>
 			<button
 				type="button"
-				onclick={() => (showScanModal = true)}
+				onclick={openScanModal}
 				class="border-border text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
 				title={t('duplicates.scanTitle')}
 			>
@@ -1313,6 +1331,49 @@
 					{new Date(startDate).toLocaleDateString()} → {new Date(endDate).toLocaleDateString()}
 				</div>
 			{/if}
+
+			<!-- Detection-sensitivity tuning: saved with the scan and applied to
+			     future scans and import-time checks alike. -->
+			<div class="border-border mb-4 rounded-lg border">
+				<button
+					type="button"
+					onclick={() => (showAdvanced = !showAdvanced)}
+					class="flex w-full items-center justify-between px-3 py-2.5 text-left"
+				>
+					<span class="text-foreground text-sm font-medium">
+						{t('duplicates.advancedTitle')}
+					</span>
+					<ChevronDown
+						class="text-muted-foreground h-4 w-4 transition-transform {showAdvanced
+							? 'rotate-180'
+							: ''}"
+					/>
+				</button>
+				{#if showAdvanced}
+					<div class="border-border space-y-3 border-t p-3">
+						<p class="text-muted-foreground text-xs">{t('duplicates.advancedHint')}</p>
+						{#each [{ key: 'time_window_s', label: t('duplicates.thresholdTimeWindow'), limit: PARAM_LIMITS.time_window_s }, { key: 'distance_m', label: t('duplicates.thresholdDistance'), limit: PARAM_LIMITS.distance_m }, { key: 'merge_gap_min', label: t('duplicates.thresholdMergeGap'), limit: PARAM_LIMITS.merge_gap_min }, { key: 'min_pairs', label: t('duplicates.thresholdMinPairs'), limit: PARAM_LIMITS.min_pairs }] as field (field.key)}
+							<label class="block">
+								<span class="text-foreground mb-0.5 block text-xs font-medium">
+									{field.label}
+								</span>
+								<div class="flex items-center gap-2">
+									<input
+										type="number"
+										min={field.limit.min}
+										max={field.limit.max}
+										bind:value={scanParams[field.key as keyof DuplicateParams]}
+										class="border-border focus:ring-primary w-24 rounded-lg border bg-transparent px-2 py-1.5 text-sm focus:ring-2 focus:outline-none"
+									/>
+									<span class="text-muted-foreground text-[10px]">
+										{field.limit.min}–{field.limit.max}
+									</span>
+								</div>
+							</label>
+						{/each}
+					</div>
+				{/if}
+			</div>
 
 			<div class="flex justify-end gap-2">
 				<button

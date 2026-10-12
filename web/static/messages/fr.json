@@ -1604,7 +1604,17 @@
     "scanStart": "Lancer l'analyse",
     "scanStarted": "Analyse lancée — vous serez averti une fois terminée",
     "scanStartFailed": "Impossible de lancer l'analyse",
-    "pendingReports": "Doublons possibles ({count})"
+    "pendingReports": "Doublons possibles ({count})",
+    "cleanupCompletedToast": "Nettoyage terminé — {count} points en double supprimés dans {sections} section(s)",
+    "cleanupCompletedHint": "Les distances et statistiques des jours concernés ont été actualisées.",
+    "cleanupNothingToast": "Nettoyage terminé — rien à supprimer",
+    "openDataEditor": "Ouvrir l'éditeur de données",
+    "advancedTitle": "Sensibilité de détection",
+    "advancedHint": "La rigueur de détection des doublons : des valeurs plus élevées trouvent moins de sections, mais plus certaines. Enregistré avec l'analyse et appliqué aussi aux futurs imports.",
+    "thresholdTimeWindow": "Fenêtre temporelle (secondes)",
+    "thresholdDistance": "Distance de correspondance (mètres)",
+    "thresholdMergeGap": "Écart de fusion (minutes)",
+    "thresholdMinPairs": "Correspondances minimales par section"
   },
 
   "dataEditor": {

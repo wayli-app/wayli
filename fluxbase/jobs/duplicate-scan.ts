@@ -18,11 +18,14 @@
 import {
   buildClusters,
   buildSummary,
+  clampParams,
   detectForRange,
+  fetchUserParams,
+  saveUserParams,
   stitchClusters,
-  DEFAULT_DUPLICATE_PARAMS,
   monthWindows,
   type DuplicateCluster,
+  type DuplicateParams,
   type DuplicateReportSource,
   type RawClusterRow
 } from './_shared/services/duplicate-detection.service.ts';
@@ -34,6 +37,12 @@ interface DuplicateScanPayload {
   /** ISO dates (yyyy-mm-dd). Absent = scan the user's full history. */
   start_date?: string;
   end_date?: string;
+  /**
+   * Tuned thresholds from the scan dialog. When present they are clamped,
+   * used for this scan AND persisted as the user's new defaults (future
+   * scans and import-time checks). Absent = keep the saved defaults.
+   */
+  params?: Partial<DuplicateParams>;
 }
 
 export async function handler(
@@ -48,6 +57,14 @@ export async function handler(
 
   if (!userId) {
     return { success: false, error: 'No user context available' };
+  }
+
+  // Effective thresholds: an explicit payload (the dialog's sensitivity
+  // fields) wins and becomes the saved default; otherwise the stored ones.
+  const tuned = payload.params ? clampParams(payload.params) : null;
+  const params: DuplicateParams = tuned ?? (await fetchUserParams(fluxbase, userId));
+  if (tuned) {
+    await saveUserParams(fluxbase, userId, tuned);
   }
 
   // Span to scan: the requested range, or the user's full history.
@@ -87,7 +104,8 @@ export async function handler(
       const draft = await detectForRange(
         fluxbase,
         w.start.toISOString(),
-        w.end.toISOString()
+        w.end.toISOString(),
+        params
       );
       if (draft) {
         allRows.push(...draftToRows(draft.clusters));
@@ -108,10 +126,11 @@ export async function handler(
 
   // Re-assign stable section ids across the merged windows (stitching first,
   // so a trip spanning a month boundary becomes ONE section), then persist a
-  // single report for the whole scan.
+  // single report for the whole scan. The effective thresholds travel with
+  // the report — the cleanup job re-derives victims with exactly these.
   const clusters: DuplicateCluster[] = stitchClusters(
     buildClusters(allRows),
-    DEFAULT_DUPLICATE_PARAMS.merge_gap_min
+    params.merge_gap_min
   );
   const source: DuplicateReportSource = {
     kind: 'scan',
@@ -127,6 +146,7 @@ export async function handler(
       status: 'pending_review',
       source_type: 'scan',
       source,
+      params,
       clusters,
       summary
     })

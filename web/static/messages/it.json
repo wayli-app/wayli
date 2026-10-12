@@ -1604,7 +1604,17 @@
     "scanStart": "Avvia scansione",
     "scanStarted": "Scansione avviata — riceverai una notifica al termine",
     "scanStartFailed": "Impossibile avviare la scansione",
-    "pendingReports": "Possibili duplicati ({count})"
+    "pendingReports": "Possibili duplicati ({count})",
+    "cleanupCompletedToast": "Pulizia completata — rimossi {count} punti duplicati in {sections} sezione/i",
+    "cleanupCompletedHint": "Distanze e statistiche dei giorni coinvolti sono state aggiornate.",
+    "cleanupNothingToast": "Pulizia completata — nessuna rimozione necessaria",
+    "openDataEditor": "Apri editor dati",
+    "advancedTitle": "Sensibilità di rilevamento",
+    "advancedHint": "Con quale rigore vengono rilevati i duplicati: valori più alti trovano meno sezioni, ma più certe. Salvato con la scansione e applicato anche ai futuri import.",
+    "thresholdTimeWindow": "Finestra temporale (secondi)",
+    "thresholdDistance": "Distanza di corrispondenza (metri)",
+    "thresholdMergeGap": "Intervallo di fusione (minuti)",
+    "thresholdMinPairs": "Corrispondenze minime per sezione"
   },
 
   "dataEditor": {

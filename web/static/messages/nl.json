@@ -1604,7 +1604,17 @@
     "scanStart": "Scan starten",
     "scanStarted": "Scan gestart — je krijgt bericht zodra deze klaar is",
     "scanStartFailed": "Scan kon niet worden gestart",
-    "pendingReports": "Mogelijke duplicaten ({count})"
+    "pendingReports": "Mogelijke duplicaten ({count})",
+    "cleanupCompletedToast": "Opschonen voltooid — {count} dubbele punten verwijderd in {sections} sectie(s)",
+    "cleanupCompletedHint": "Afstanden en statistieken voor de betrokken dagen zijn vernieuwd.",
+    "cleanupNothingToast": "Opschonen voltooid — er hoefde niets verwijderd te worden",
+    "openDataEditor": "Data-editor openen",
+    "advancedTitle": "Detectiegevoeligheid",
+    "advancedHint": "Hoe streng duplicaten worden gevonden: hogere waarden vinden minder, maar zekerere secties. Wordt met de scan opgeslagen en geldt ook voor toekomstige imports.",
+    "thresholdTimeWindow": "Tijdvenster (seconden)",
+    "thresholdDistance": "Matchafstand (meters)",
+    "thresholdMergeGap": "Samenvoegafstand (minuten)",
+    "thresholdMinPairs": "Minimale matches per sectie"
   },
 
   "dataEditor": {

@@ -1604,7 +1604,17 @@
     "scanStart": "Iniciar análise",
     "scanStarted": "Análise iniciada — será notificado quando terminar",
     "scanStartFailed": "Não foi possível iniciar a análise",
-    "pendingReports": "Possíveis duplicados ({count})"
+    "pendingReports": "Possíveis duplicados ({count})",
+    "cleanupCompletedToast": "Limpeza concluída — {count} pontos duplicados removidos em {sections} secção(ões)",
+    "cleanupCompletedHint": "As distâncias e estatísticas dos dias afetados foram atualizadas.",
+    "cleanupNothingToast": "Limpeza concluída — nada precisou de ser removido",
+    "openDataEditor": "Abrir editor de dados",
+    "advancedTitle": "Sensibilidade de deteção",
+    "advancedHint": "Com que rigor os duplicados são detetados: valores mais altos encontram menos secções, mais certas. Guardado com a análise e aplicado também a futuras importações.",
+    "thresholdTimeWindow": "Janela temporal (segundos)",
+    "thresholdDistance": "Distância de correspondência (metros)",
+    "thresholdMergeGap": "Intervalo de fusão (minutos)",
+    "thresholdMinPairs": "Correspondências mínimas por secção"
   },
 
   "dataEditor": {

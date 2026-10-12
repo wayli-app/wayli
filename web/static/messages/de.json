@@ -1604,7 +1604,17 @@
     "scanStart": "Suche starten",
     "scanStarted": "Suche gestartet — du wirst benachrichtigt, wenn sie fertig ist",
     "scanStartFailed": "Suche konnte nicht gestartet werden",
-    "pendingReports": "Mögliche Duplikate ({count})"
+    "pendingReports": "Mögliche Duplikate ({count})",
+    "cleanupCompletedToast": "Bereinigung abgeschlossen — {count} doppelte Punkte in {sections} Abschnitt(en) entfernt",
+    "cleanupCompletedHint": "Distanzen und Statistiken für die betroffenen Tage wurden aktualisiert.",
+    "cleanupNothingToast": "Bereinigung abgeschlossen — es musste nichts entfernt werden",
+    "openDataEditor": "Dateneditor öffnen",
+    "advancedTitle": "Erkennungsempfindlichkeit",
+    "advancedHint": "Wie streng Duplikate erkannt werden: Höhere Werte finden weniger, dafür sicherere Abschnitte. Wird mit der Suche gespeichert und gilt auch für künftige Importe.",
+    "thresholdTimeWindow": "Zeitfenster (Sekunden)",
+    "thresholdDistance": "Übereinstimmungsdistanz (Meter)",
+    "thresholdMergeGap": "Zusammenführungslücke (Minuten)",
+    "thresholdMinPairs": "Minimale Treffer pro Abschnitt"
   },
 
   "dataEditor": {
