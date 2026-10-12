@@ -53,6 +53,7 @@ export async function handler(
 		// failure here must not fail the whole job (the countries map just
 		// serves its previous state).
 		let countriesRefreshed = 0;
+		let countriesError: string | undefined;
 		try {
 			const { error: vcError } = await (db.rpc as any).invoke(
 				'refresh-visited-countries-sql',
@@ -67,6 +68,9 @@ export async function handler(
 			);
 			countriesRefreshed = Array.isArray(vcRows) ? vcRows.length : 0;
 		} catch (vcErr) {
+			// Recorded in the result so a silently dead cache is visible in the
+			// job history, not just in the logs.
+			countriesError = vcErr instanceof Error ? vcErr.message : String(vcErr);
 			console.warn('⚠️ visited-countries refresh failed (kept previous cache):', vcErr);
 		}
 
@@ -76,7 +80,12 @@ export async function handler(
 		);
 		return {
 			success: true,
-			result: { days_upserted: daysUpserted, countries: countriesRefreshed, user_id: userId }
+			result: {
+				days_upserted: daysUpserted,
+				countries: countriesRefreshed,
+				countries_error: countriesError ?? null,
+				user_id: userId
+			}
 		};
 	} catch (error: unknown) {
 		console.error(`❌ refresh-daily-activity failed:`, error);

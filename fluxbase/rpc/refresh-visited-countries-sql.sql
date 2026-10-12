@@ -1,6 +1,6 @@
 -- @fluxbase:description Rebuild the visited_countries cache: countries where the tracker dwelled at least one continuous hour (a >24h gap between consecutive points in a country starts a new stay), so flyovers and transit corridors don't count as visits. Replaces cached rows for the target user(s) wholesale. Called by the refresh-daily-activity jobs. user_id omitted → authenticated caller refreshes themselves; service roles may pass a user_id or omit it to refresh ALL users. ~1.5s per 300k points.
 -- @fluxbase:require-role authenticated, service_role
--- @fluxbase:param user_id uuid?
+-- @fluxbase:input { "user_id?": "uuid" }
 -- @fluxbase:allowed-tables tracker_data, visited_countries
 -- @fluxbase:max-execution-time 120s
 

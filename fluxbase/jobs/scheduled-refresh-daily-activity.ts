@@ -82,6 +82,7 @@ export async function handler(
 	// user_id-optional for service roles). Failure must not fail the job — the
 	// countries map keeps serving its previous state.
 	let countries = 0;
+	let countriesError: string | undefined;
 	try {
 		const { error: vcError } = await (db.rpc as any).invoke(
 			'refresh-visited-countries-sql',
@@ -96,6 +97,9 @@ export async function handler(
 			.select('*', { count: 'exact', head: true });
 		countries = count ?? 0;
 	} catch (vcErr) {
+		// Recorded in the result so a silently dead cache is visible in the
+		// job history, not just in the logs.
+		countriesError = vcErr instanceof Error ? vcErr.message : String(vcErr);
 		console.warn('⚠️ visited-countries refresh failed (kept previous cache):', vcErr);
 	}
 
@@ -108,7 +112,12 @@ export async function handler(
 	);
 	return {
 		success: true,
-		result: { users_processed: processed, days_upserted: totalDays, countries }
+		result: {
+			users_processed: processed,
+			days_upserted: totalDays,
+			countries,
+			countries_error: countriesError ?? null
+		}
 	};
 }
 

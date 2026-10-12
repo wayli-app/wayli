@@ -1,6 +1,6 @@
 -- @fluxbase:require-role authenticated, service_role
 -- @fluxbase:max-execution-time 21600s
--- @fluxbase:param user_id uuid?
+-- @fluxbase:input { "user_id?": "uuid" }
 -- Detect place visits incrementally using enhanced cluster-first approach
 -- Improvements:
 -- 1. Lower spatial threshold (100m) for better urban granularity
