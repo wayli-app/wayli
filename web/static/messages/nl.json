@@ -1615,7 +1615,9 @@
     "thresholdDistance": "Matchafstand (meters)",
     "thresholdMergeGap": "Samenvoegafstand (minuten)",
     "thresholdMinPairs": "Minimale matches per sectie",
-    "focusSectionHint": "Deze sectie op de kaart tonen"
+    "focusSectionHint": "Deze sectie op de kaart tonen",
+    "footerRemoves": "Verwijdert: {count} punten ({labels})",
+    "footerKeeps": "Houdt: {count} punten ({labels})"
   },
   "dataEditor": {
     "accuracy": "Nauwkeurigheid: ±{waarde} m",

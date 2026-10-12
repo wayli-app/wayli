@@ -1615,7 +1615,9 @@
     "thresholdDistance": "匹配距离（米）",
     "thresholdMergeGap": "合并间隔（分钟）",
     "thresholdMinPairs": "每个区段的最小匹配数",
-    "focusSectionHint": "在地图上显示此区段"
+    "focusSectionHint": "在地图上显示此区段",
+    "footerRemoves": "移除：{count} 个点（{labels}）",
+    "footerKeeps": "保留：{count} 个点（{labels}）"
   },
   "dataEditor": {
     "accuracy": "精度：±{值}m",

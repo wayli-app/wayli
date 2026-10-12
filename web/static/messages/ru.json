@@ -1615,7 +1615,9 @@
     "thresholdDistance": "Дистанция совпадения (метры)",
     "thresholdMergeGap": "Интервал объединения (минуты)",
     "thresholdMinPairs": "Минимум совпадений на участок",
-    "focusSectionHint": "Показать этот участок на карте"
+    "focusSectionHint": "Показать этот участок на карте",
+    "footerRemoves": "Удаляет: {count} точек ({labels})",
+    "footerKeeps": "Оставляет: {count} точек ({labels})"
   },
   "dataEditor": {
     "accuracy": "Точность: ±{value}м",

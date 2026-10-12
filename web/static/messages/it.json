@@ -1615,7 +1615,9 @@
     "thresholdDistance": "Distanza di corrispondenza (metri)",
     "thresholdMergeGap": "Intervallo di fusione (minuti)",
     "thresholdMinPairs": "Corrispondenze minime per sezione",
-    "focusSectionHint": "Mostra questa sezione sulla mappa"
+    "focusSectionHint": "Mostra questa sezione sulla mappa",
+    "footerRemoves": "Rimuove: {count} punti ({labels})",
+    "footerKeeps": "Mantiene: {count} punti ({labels})"
   },
   "dataEditor": {
     "accuracy": "Precisione: ±{valore}m",

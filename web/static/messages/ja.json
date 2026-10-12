@@ -1615,7 +1615,9 @@
     "thresholdDistance": "一致距離（メートル）",
     "thresholdMergeGap": "統合ギャップ（分）",
     "thresholdMinPairs": "セクションあたりの最小一致数",
-    "focusSectionHint": "このセクションを地図に表示"
+    "focusSectionHint": "このセクションを地図に表示",
+    "footerRemoves": "削除：{count} 点（{labels}）",
+    "footerKeeps": "保持：{count} 点（{labels}）"
   },
   "dataEditor": {
     "accuracy": "精度: ±{値}m",

@@ -67,6 +67,35 @@
 		clusters.filter((c) => decisions[c.id] === 'a' || decisions[c.id] === 'b').length
 	);
 
+	/**
+	 * Footer restatement of the selected plan, aggregated per side label:
+	 * "Removes: 120 Live recording points · Keeps: 117 points (File import)".
+	 * The radios above decide; this line spells out what the commit button
+	 * below will do — the counts flip with every radio change on purpose.
+	 */
+	const planSummary = $derived.by(() => {
+		const removes = new Map<string, number>();
+		const keeps = new Map<string, number>();
+		for (const c of clusters) {
+			const d = decisions[c.id];
+			if (d !== 'a' && d !== 'b') continue;
+			const removedSide = d === 'a' ? c.b : c.a;
+			const keptSide = d === 'a' ? c.a : c.b;
+			removes.set(sideLabel(removedSide), (removes.get(sideLabel(removedSide)) ?? 0) + removedSide.count);
+			keeps.set(sideLabel(keptSide), (keeps.get(sideLabel(keptSide)) ?? 0) + keptSide.count);
+		}
+		const group = (m: Map<string, number>, key: string): string | null => {
+			if (m.size === 0) return null;
+			const total = [...m.values()].reduce((a, b) => a + b, 0);
+			const labels = [...m.keys()].join(', ');
+			return t(key, { count: total, labels });
+		};
+		return {
+			removes: group(removes, 'duplicates.footerRemoves'),
+			keeps: group(keeps, 'duplicates.footerKeeps')
+		};
+	});
+
 	$effect(() => {
 		// Initialise / re-derive when the report prop changes.
 		const init: Record<string, DuplicateDecision> = {};
@@ -444,27 +473,42 @@
 		</div>
 
 		<!-- Footer -->
-		<div class="border-border flex items-center justify-between gap-3 border-t p-4">
-			<button
-				type="button"
-				onclick={handleDismiss}
-				class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium"
-			>
-				{t('duplicates.dismiss')}
-			</button>
-			<button
-				type="button"
-				onclick={handleApply}
-				disabled={isSubmitting}
-				class="bg-destructive hover:bg-destructive/90 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
-			>
-				{#if isSubmitting}
-					<Loader2 class="h-4 w-4 animate-spin" />
-				{/if}
-				{activeSections === 0
-					? t('duplicates.dismiss')
-					: t('duplicates.apply').replace('{count}', removeCount.toLocaleString())}
-			</button>
+		<div class="border-border border-t p-4">
+			{#if activeSections > 0 && (planSummary.removes || planSummary.keeps)}
+				<p class="text-muted-foreground mb-3 text-center text-xs">
+					{#if planSummary.removes && planSummary.keeps}
+						{planSummary.removes}
+						<span class="mx-1">·</span>
+						{planSummary.keeps}
+					{:else if planSummary.removes}
+						{planSummary.removes}
+					{:else}
+						{planSummary.keeps}
+					{/if}
+				</p>
+			{/if}
+			<div class="flex items-center justify-between gap-3">
+				<button
+					type="button"
+					onclick={handleDismiss}
+					class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium"
+				>
+					{t('duplicates.dismiss')}
+				</button>
+				<button
+					type="button"
+					onclick={handleApply}
+					disabled={isSubmitting}
+					class="bg-destructive hover:bg-destructive/90 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+				>
+					{#if isSubmitting}
+						<Loader2 class="h-4 w-4 animate-spin" />
+					{/if}
+					{activeSections === 0
+						? t('duplicates.dismiss')
+						: t('duplicates.apply', { count: removeCount.toLocaleString() })}
+				</button>
+			</div>
 		</div>
 	</div>
 </div>

@@ -1615,7 +1615,9 @@
     "thresholdDistance": "일치 거리(미터)",
     "thresholdMergeGap": "병합 간격(분)",
     "thresholdMinPairs": "구간당 최소 일치 수",
-    "focusSectionHint": "지도에서 이 구간 보기"
+    "focusSectionHint": "지도에서 이 구간 보기",
+    "footerRemoves": "삭제: {count}개 지점 ({labels})",
+    "footerKeeps": "유지: {count}개 지점 ({labels})"
   },
   "dataEditor": {
     "accuracy": "정확도: ±{value}m",
