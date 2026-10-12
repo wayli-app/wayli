@@ -203,9 +203,27 @@
 
 	function reportTitle(report: DuplicateReport): string {
 		if (report.source_type === 'import' && report.source?.file_name) {
-			return report.source.file_name;
+			return t('duplicates.bannerTitle', { file: report.source.file_name });
 		}
 		return t('duplicates.bannerTitleScan');
+	}
+
+	// Two-step dismiss: the banner ✕ must not permanently discard a finding on
+	// a stray click. First click arms the button (it becomes "Dismiss"),
+	// second click confirms; arming clears itself after 4 seconds.
+	let confirmingDismissId = $state<string | null>(null);
+	let confirmDismissTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function handleBannerDismiss(report: DuplicateReport) {
+		if (confirmingDismissId !== report.id) {
+			confirmingDismissId = report.id;
+			if (confirmDismissTimer) clearTimeout(confirmDismissTimer);
+			confirmDismissTimer = setTimeout(() => (confirmingDismissId = null), 4000);
+			return;
+		}
+		if (confirmDismissTimer) clearTimeout(confirmDismissTimer);
+		confirmingDismissId = null;
+		handleDismissReport(report);
 	}
 
 	async function handleDismissReport(report: DuplicateReport) {
@@ -298,7 +316,7 @@
 						<Copy class="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
 						<div class="min-w-0 flex-1">
 							<p class="text-foreground truncate text-sm font-semibold">
-								{t('duplicates.bannerTitle').replace('{file}', reportTitle(report))}
+								{reportTitle(report)}
 							</p>
 							<p class="text-muted-foreground text-xs">
 								{t('duplicates.bannerDescription')
@@ -318,13 +336,18 @@
 						</button>
 						<button
 							type="button"
-							onclick={() => handleDismissReport(report)}
+							onclick={() => handleBannerDismiss(report)}
 							disabled={dismissingReportId === report.id}
-							class="text-muted-foreground hover:text-foreground shrink-0 rounded-md p-1.5 disabled:opacity-50"
+							class="text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 shrink-0 rounded-md border border-transparent p-1.5 text-xs font-medium transition-colors disabled:opacity-50 {confirmingDismissId ===
+							report.id
+								? 'border-destructive/50 text-destructive'
+								: ''}"
 							aria-label={t('duplicates.dismiss')}
 						>
 							{#if dismissingReportId === report.id}
 								<Loader2 class="h-4 w-4 animate-spin" />
+							{:else if confirmingDismissId === report.id}
+								{t('duplicates.dismiss')}?
 							{:else}
 								<X class="h-4 w-4" />
 							{/if}

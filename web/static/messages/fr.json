@@ -1614,9 +1614,9 @@
     "thresholdTimeWindow": "Fenêtre temporelle (secondes)",
     "thresholdDistance": "Distance de correspondance (mètres)",
     "thresholdMergeGap": "Écart de fusion (minutes)",
-    "thresholdMinPairs": "Correspondances minimales par section"
+    "thresholdMinPairs": "Correspondances minimales par section",
+    "focusSectionHint": "Afficher cette section sur la carte"
   },
-
   "dataEditor": {
     "accuracy": "Précision : ±{valeur} m",
     "addPoint": "Ajouter un point",

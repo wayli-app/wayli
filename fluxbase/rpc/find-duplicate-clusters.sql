@@ -217,7 +217,7 @@ clusters AS (
     GROUP BY i.key_a, i.key_b, i.island_no
     HAVING count(*) >= (SELECT min_pairs FROM params)
 )
-SELECT COALESCE(jsonb_agg(to_jsonb(c) ORDER BY c.start_ts), '[]'::jsonb)
+SELECT COALESCE(jsonb_agg(to_jsonb(c) ORDER BY c.start_ts), '[]'::jsonb) AS clusters
 FROM (
     SELECT
         c.key_a, c.key_b, c.start_ts, c.end_ts, c.pair_count,

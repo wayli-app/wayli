@@ -195,10 +195,13 @@ export async function handler(
   };
 }
 
-/** Delete victims in timestamp batches (mirrors the data editor's deletePoints). */
+/** Delete victims in timestamp batches (mirrors the data editor's deletePoints).
+ * Batch 50, not 500: PostgREST puts the `.in()` filter in the query string and
+ * rejects long ones with "Request Header Fields Too Large" (~120 ISO
+ * timestamps already exceed it — found by the GUI test pass). */
 async function deleteVictims(fluxbase: FluxbaseClient, timestamps: string[]): Promise<number> {
-  let deleted = 0;
-  const BATCH = 500;
+	let deleted = 0;
+	const BATCH = 50;
   for (let i = 0; i < timestamps.length; i += BATCH) {
     const batch = timestamps.slice(i, i + BATCH);
     const { error } = await fluxbase.from('tracker_data').delete().in('recorded_at', batch);

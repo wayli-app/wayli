@@ -20,6 +20,7 @@ import {
 	qualityScore,
 	recommendKeep,
 	stitchClusters,
+	unwrapRpcRows,
 	type DuplicateCluster,
 	type DuplicateSideStats
 } from '../../../fluxbase/jobs/_shared/services/duplicate-detection.service';
@@ -281,6 +282,33 @@ describe('monthWindows', () => {
 		expect(
 			monthWindows(new Date('2026-06-03T00:00:00Z'), new Date('2026-06-20T00:00:00Z'))
 		).toHaveLength(1);
+	});
+});
+
+describe('unwrapRpcRows', () => {
+	const clusterRow = { key_a: 'import:a', key_b: 'device:b', pair_count: 10 };
+
+	it('unwraps the sync execution envelope and the single output column', () => {
+		// Shape actually returned by POST /api/v1/rpc/{ns}/{name}: the envelope
+		// wraps rows, and the SQL's single output column wraps the payload.
+		const envelope = { status: 'completed', result: [{ clusters: [clusterRow] }] };
+		expect(unwrapRpcRows(envelope, 'clusters')).toEqual([clusterRow]);
+	});
+
+	it('handles a raw rows array and rows without the column wrapper', () => {
+		expect(unwrapRpcRows([clusterRow], 'clusters')).toEqual([clusterRow]);
+		expect(unwrapRpcRows({ result: [clusterRow] }, 'clusters')).toEqual([clusterRow]);
+	});
+
+	it('returns empty for null, empty results, and missing columns — never throws', () => {
+		expect(unwrapRpcRows(null, 'clusters')).toEqual([]);
+		expect(unwrapRpcRows({ status: 'completed', result: [] }, 'clusters')).toEqual([]);
+		expect(unwrapRpcRows({ status: 'completed', result: [{ other: [] }] }, 'clusters')).toEqual([]);
+	});
+
+	it('unwraps victim timestamp lists the same way', () => {
+		const envelope = { status: 'completed', result: [{ victims: ['t1', 't2'] }] };
+		expect(unwrapRpcRows(envelope, 'victims')).toEqual(['t1', 't2']);
 	});
 });
 

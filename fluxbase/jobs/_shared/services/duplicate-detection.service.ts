@@ -398,17 +398,51 @@ interface RpcResult<T> {
 	error?: { message: string } | null;
 }
 
+/**
+ * Unwrap an rpc.invoke response into the procedure's rows. The Fluxbase RPC
+ * endpoint answers with an execution envelope ({ status, result: [row, ...] })
+ * for sync calls, or the rows array directly depending on version — and each
+ * row wraps the SQL's single output column under its name. Handle all shapes
+ * like refresh-daily-activity.ts does; getting this wrong silently yields
+ * "no clusters" instead of an error.
+ */
+export function unwrapRpcRows(data: unknown, column: string): unknown[] {
+	const envelope = data as { result?: unknown } | unknown[] | null;
+	let rows: unknown[];
+	if (Array.isArray(envelope)) {
+		rows = envelope;
+	} else if (envelope && typeof envelope === 'object' && Array.isArray(envelope.result)) {
+		rows = envelope.result;
+	} else {
+		return [];
+	}
+	if (rows.length === 0) return [];
+	const first = rows[0] as Record<string, unknown> | unknown;
+	if (first && typeof first === 'object' && !Array.isArray(first)) {
+		const row = first as Record<string, unknown>;
+		if (column in row) {
+			const inner = row[column];
+			return Array.isArray(inner) ? inner : [];
+		}
+		// Wrapped under a single key but not the expected column — the SQL
+		// changed or the wrong procedure answered; don't pass garbage on.
+		const keys = Object.keys(row);
+		if (keys.length === 1 && Array.isArray(row[keys[0]])) return [];
+	}
+	return rows;
+}
+
 async function invokeClusterRpc(
 	fluxbase: FluxbaseClient,
 	args: Record<string, unknown>
 ): Promise<RawClusterRow[]> {
 	const { data, error } = (await fluxbase.rpc.invoke('find-duplicate-clusters', args, {
 		namespace: 'wayli'
-	})) as RpcResult<RawClusterRow[]>;
+	})) as RpcResult<unknown>;
 	if (error) {
 		throw new Error(`find-duplicate-clusters failed: ${error.message}`);
 	}
-	return Array.isArray(data) ? data : [];
+	return unwrapRpcRows(data, 'clusters') as RawClusterRow[];
 }
 
 export async function detectForImport(
@@ -478,11 +512,11 @@ export async function findVictims(
 			distance_m: params.distance_m
 		},
 		{ namespace: 'wayli' }
-	)) as RpcResult<string[]>;
+	)) as RpcResult<unknown>;
 	if (error) {
 		throw new Error(`find-duplicate-victims failed: ${error.message}`);
 	}
-	return Array.isArray(data) ? data : [];
+	return unwrapRpcRows(data, 'victims') as string[];
 }
 
 // ============================================================================

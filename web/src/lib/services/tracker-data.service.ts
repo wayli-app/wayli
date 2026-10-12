@@ -128,11 +128,12 @@ export async function getPointCount(
 
 /**
  * Permanently delete points by their recorded_at timestamps.
- * Deletes in batches of 500 to avoid URL length limits.
+ * Deletes in batches of 50: the `.in()` filter travels in the query string
+ * and PostgREST rejects long ones with "Request Header Fields Too Large".
  */
 export async function deletePoints(userId: string, timestamps: string[]): Promise<number> {
 	let deleted = 0;
-	const batchSize = 500;
+	const batchSize = 50;
 
 	for (let i = 0; i < timestamps.length; i += batchSize) {
 		const batch = timestamps.slice(i, i + batchSize);

@@ -1614,9 +1614,9 @@
     "thresholdTimeWindow": "Janela temporal (segundos)",
     "thresholdDistance": "Distância de correspondência (metros)",
     "thresholdMergeGap": "Intervalo de fusão (minutos)",
-    "thresholdMinPairs": "Correspondências mínimas por secção"
+    "thresholdMinPairs": "Correspondências mínimas por secção",
+    "focusSectionHint": "Mostrar esta secção no mapa"
   },
-
   "dataEditor": {
     "accuracy": "Precisão: ±{valor}m",
     "addPoint": "Adicionar ponto",

@@ -1614,9 +1614,9 @@
     "thresholdTimeWindow": "時間ウィンドウ（秒）",
     "thresholdDistance": "一致距離（メートル）",
     "thresholdMergeGap": "統合ギャップ（分）",
-    "thresholdMinPairs": "セクションあたりの最小一致数"
+    "thresholdMinPairs": "セクションあたりの最小一致数",
+    "focusSectionHint": "このセクションを地図に表示"
   },
-
   "dataEditor": {
     "accuracy": "精度: ±{値}m",
     "addPoint": "ポイントの追加",

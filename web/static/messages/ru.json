@@ -1614,9 +1614,9 @@
     "thresholdTimeWindow": "Временное окно (секунды)",
     "thresholdDistance": "Дистанция совпадения (метры)",
     "thresholdMergeGap": "Интервал объединения (минуты)",
-    "thresholdMinPairs": "Минимум совпадений на участок"
+    "thresholdMinPairs": "Минимум совпадений на участок",
+    "focusSectionHint": "Показать этот участок на карте"
   },
-
   "dataEditor": {
     "accuracy": "Точность: ±{value}м",
     "addPoint": "Добавить точку",

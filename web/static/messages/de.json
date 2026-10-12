@@ -1614,9 +1614,9 @@
     "thresholdTimeWindow": "Zeitfenster (Sekunden)",
     "thresholdDistance": "Übereinstimmungsdistanz (Meter)",
     "thresholdMergeGap": "Zusammenführungslücke (Minuten)",
-    "thresholdMinPairs": "Minimale Treffer pro Abschnitt"
+    "thresholdMinPairs": "Minimale Treffer pro Abschnitt",
+    "focusSectionHint": "Diesen Abschnitt auf der Karte zeigen"
   },
-
   "dataEditor": {
     "accuracy": "Genauigkeit: ±{Wert}m",
     "addPoint": "Punkt hinzufügen",

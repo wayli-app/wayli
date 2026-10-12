@@ -213,7 +213,23 @@
 			const kept = decision === 'a' ? cluster.a : cluster.b;
 			const removed = decision === 'a' ? cluster.b : cluster.a;
 
-			// Kept side: connected track — it stays in the user's history.
+			// Losing side FIRST: its dots sit at the same coordinates as the kept
+			// track when recordings coincide, and the kept side must win the
+			// z-fight — it's the one that stays.
+			for (const p of pointsFor(removed, cluster)) {
+				sectionLayer.addLayer(
+					L.circleMarker([p.lat, p.lng], {
+						radius: 2.5,
+						color: REMOVED_COLOR,
+						fillColor: REMOVED_COLOR,
+						fillOpacity: 0.45,
+						weight: 1
+					})
+				);
+				bounds.push([p.lat, p.lng]);
+			}
+
+			// Kept side: connected track on top — it stays in the user's history.
 			const keptPts = pointsFor(kept, cluster).toSorted((x, y) =>
 				x.recorded_at.localeCompare(y.recorded_at)
 			);
@@ -221,32 +237,18 @@
 				sectionLayer.addLayer(
 					L.polyline(
 						keptPts.map((p) => [p.lat, p.lng] as [number, number]),
-						{ color: KEPT_COLOR, weight: 2.5, opacity: 0.9 }
+						{ color: KEPT_COLOR, weight: 3, opacity: 0.95 }
 					)
 				);
 			}
 			for (const p of keptPts) {
 				sectionLayer.addLayer(
 					L.circleMarker([p.lat, p.lng], {
-						radius: 2.5,
+						radius: 3,
 						color: KEPT_COLOR,
 						fillColor: KEPT_COLOR,
-						fillOpacity: 0.7,
-						weight: 1
-					})
-				);
-				bounds.push([p.lat, p.lng]);
-			}
-
-			// Losing side: dots only — these points are removed on confirm.
-			for (const p of pointsFor(removed, cluster)) {
-				sectionLayer.addLayer(
-					L.circleMarker([p.lat, p.lng], {
-						radius: 3,
-						color: REMOVED_COLOR,
-						fillColor: REMOVED_COLOR,
-						fillOpacity: 0.6,
-						weight: 1
+						fillOpacity: 0.9,
+						weight: 1.5
 					})
 				);
 				bounds.push([p.lat, p.lng]);
@@ -257,6 +259,17 @@
 			hasFitBounds = true;
 			map.fitBounds(L.latLngBounds(bounds), { padding: [30, 30], maxZoom: 15 });
 		}
+	}
+
+	/** Pan/zoom the map to one section's points (section header click). */
+	function focusSection(cluster: DuplicateCluster) {
+		if (!map || !L) return;
+		const pts = [...pointsFor(cluster.a, cluster), ...pointsFor(cluster.b, cluster)];
+		if (pts.length === 0) return;
+		map.fitBounds(L.latLngBounds(pts.map((p) => [p.lat, p.lng] as [number, number])), {
+			padding: [50, 50],
+			maxZoom: 17
+		});
 	}
 
 	async function handleDismiss() {
@@ -367,9 +380,14 @@
 					{@const decision = decisions[cluster.id] ?? cluster.recommended_keep}
 					<div class="border-border rounded-xl border p-4">
 						<div class="mb-3 flex items-center justify-between gap-3">
-							<span class="text-foreground text-sm font-semibold">
+							<button
+								type="button"
+								onclick={() => focusSection(cluster)}
+								class="text-foreground hover:bg-muted -my-1 flex-1 rounded-md px-1 py-1 text-left text-sm font-semibold transition-colors"
+								title={t('duplicates.focusSectionHint')}
+							>
 								{formatSectionRange(cluster)}
-							</span>
+							</button>
 							<button
 								type="button"
 								onclick={() =>

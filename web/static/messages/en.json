@@ -1614,9 +1614,9 @@
     "thresholdTimeWindow": "Time window (seconds)",
     "thresholdDistance": "Match distance (meters)",
     "thresholdMergeGap": "Merge gap (minutes)",
-    "thresholdMinPairs": "Minimum matches per section"
+    "thresholdMinPairs": "Minimum matches per section",
+    "focusSectionHint": "Show this section on the map"
   },
-
   "dataEditor": {
     "pageTitle": "Data Editor · Wayli",
     "heading": "Data Editor",

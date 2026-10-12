@@ -17,7 +17,7 @@ WITH bounds AS (
         COALESCE($time_window_s::integer, 180) AS time_window_s,
         COALESCE($distance_m::integer, 150) AS distance_m
 )
-SELECT COALESCE(jsonb_agg(v.recorded_at ORDER BY v.recorded_at), '[]'::jsonb)
+SELECT COALESCE(jsonb_agg(v.recorded_at ORDER BY v.recorded_at), '[]'::jsonb) AS victims
 FROM (
     SELECT l.recorded_at
     FROM public.tracker_data l, bounds b

@@ -1614,9 +1614,9 @@
     "thresholdTimeWindow": "时间窗口（秒）",
     "thresholdDistance": "匹配距离（米）",
     "thresholdMergeGap": "合并间隔（分钟）",
-    "thresholdMinPairs": "每个区段的最小匹配数"
+    "thresholdMinPairs": "每个区段的最小匹配数",
+    "focusSectionHint": "在地图上显示此区段"
   },
-
   "dataEditor": {
     "accuracy": "精度：±{值}m",
     "addPoint": "添加点",

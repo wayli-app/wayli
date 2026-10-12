@@ -1614,9 +1614,9 @@
     "thresholdTimeWindow": "시간 창(초)",
     "thresholdDistance": "일치 거리(미터)",
     "thresholdMergeGap": "병합 간격(분)",
-    "thresholdMinPairs": "구간당 최소 일치 수"
+    "thresholdMinPairs": "구간당 최소 일치 수",
+    "focusSectionHint": "지도에서 이 구간 보기"
   },
-
   "dataEditor": {
     "accuracy": "정확도: ±{value}m",
     "addPoint": "포인트 추가",

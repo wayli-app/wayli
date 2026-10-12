@@ -137,16 +137,42 @@ function jobDisplayName(jobName: string): string {
  * Dedicated completion surface for duplicate cleanup (#274): a toast with
  * the outcome plus a jump into the data editor — on top of the standard bell
  * notification, which only carries the progress text.
+ *
+ * Counts come from the duplicate_reports row (the cleanup job writes its
+ * summary before completing). The queue row's own `result` column does not
+ * survive the jobs GET API (it round-trips as "{}"), so it can't be trusted.
  */
-function notifyDuplicateCleanupCompleted(job: JobStoreJob): void {
+async function notifyDuplicateCleanupCompleted(job: JobStoreJob): Promise<void> {
 	if (!browser) return;
-	const result = (job.result ?? {}) as {
-		removed_count?: number;
-		sections_applied?: number;
-		dismissed?: boolean;
-	};
-	const removed = Number(result.removed_count ?? 0);
-	const sections = Number(result.sections_applied ?? 0);
+
+	let payload = job.payload as unknown;
+	if (typeof payload === 'string') {
+		try {
+			payload = JSON.parse(payload);
+		} catch {
+			payload = {};
+		}
+	}
+	const reportId = (payload as { report_id?: string } | null)?.report_id;
+
+	let removed = 0;
+	let sections = 0;
+	if (reportId) {
+		try {
+			const { data } = await fluxbase
+				.from('duplicate_reports')
+				.select('summary')
+				.eq('id', reportId)
+				.maybeSingle();
+			const summary = (
+				data as { summary?: { removed_count?: number; section_count?: number } } | null
+			)?.summary;
+			removed = Number(summary?.removed_count ?? 0);
+			sections = Number(summary?.section_count ?? 0);
+		} catch (err) {
+			console.warn('[JobStore] Failed to load duplicate report summary for toast:', err);
+		}
+	}
 
 	if (removed > 0) {
 		toast.success(t('duplicates.cleanupCompletedToast', { count: removed, sections }), {
@@ -178,8 +204,11 @@ function notifyTerminalJob(job: JobStoreJob): void {
 					: null;
 	if (!type) return;
 
-	if (job.job_name === 'duplicate_cleanup' && job.status === 'completed') {
-		notifyDuplicateCleanupCompleted(job);
+	// Realtime job names arrive with hyphens ('duplicate-cleanup'); the
+	// display map normalizes, and so must every direct comparison.
+	const normalizedName = job.job_name.replace(/-/g, '_');
+	if (normalizedName === 'duplicate_cleanup' && job.status === 'completed') {
+		void notifyDuplicateCleanupCompleted(job);
 	}
 
 	const name = jobDisplayName(job.job_name);
@@ -194,8 +223,8 @@ function notifyTerminalJob(job: JobStoreJob): void {
 	// duplicate cleanup lands in the data editor where the sections lived.
 	const link =
 		job.status === 'completed' &&
-		(job.job_name === 'data_export' || job.job_name === 'duplicate_cleanup')
-			? job.job_name === 'data_export'
+		(normalizedName === 'data_export' || normalizedName === 'duplicate_cleanup')
+			? normalizedName === 'data_export'
 				? '/dashboard/import-export'
 				: '/dashboard/data-editor'
 			: null;

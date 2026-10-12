@@ -1614,9 +1614,9 @@
     "thresholdTimeWindow": "Tijdvenster (seconden)",
     "thresholdDistance": "Matchafstand (meters)",
     "thresholdMergeGap": "Samenvoegafstand (minuten)",
-    "thresholdMinPairs": "Minimale matches per sectie"
+    "thresholdMinPairs": "Minimale matches per sectie",
+    "focusSectionHint": "Deze sectie op de kaart tonen"
   },
-
   "dataEditor": {
     "accuracy": "Nauwkeurigheid: ±{waarde} m",
     "addPoint": "Punt toevoegen",

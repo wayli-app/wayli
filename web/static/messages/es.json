@@ -1614,9 +1614,9 @@
     "thresholdTimeWindow": "Ventana de tiempo (segundos)",
     "thresholdDistance": "Distancia de coincidencia (metros)",
     "thresholdMergeGap": "Hueco de fusión (minutos)",
-    "thresholdMinPairs": "Coincidencias mínimas por sección"
+    "thresholdMinPairs": "Coincidencias mínimas por sección",
+    "focusSectionHint": "Mostrar esta sección en el mapa"
   },
-
   "dataEditor": {
     "accuracy": "Precisión: ±{valor}m",
     "addPoint": "Agregar punto",
