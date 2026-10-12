@@ -40,7 +40,10 @@ describe('parseSessionKey', () => {
 			kind: 'device',
 			value: 'owntracks-pixel'
 		});
-		expect(parseSessionKey('legacy:2026-06-03T13')).toEqual({ kind: 'legacy', value: '2026-06-03T13' });
+		expect(parseSessionKey('legacy:2026-06-03T13')).toEqual({
+			kind: 'legacy',
+			value: '2026-06-03T13'
+		});
 		expect(parseSessionKey('other:manual')).toEqual({ kind: 'other', value: 'manual' });
 	});
 
@@ -75,13 +78,23 @@ describe('qualityScore', () => {
 describe('recommendKeep', () => {
 	it('prefers a clearly better recording: dense accurate FIT beats sparse noisy device', () => {
 		const fit = side({ key: 'import:fit', kind: 'import', points_per_min: 60, median_accuracy: 5 });
-		const device = side({ key: 'device:a', kind: 'device', points_per_min: 0.5, median_accuracy: 35 });
+		const device = side({
+			key: 'device:a',
+			kind: 'device',
+			points_per_min: 0.5,
+			median_accuracy: 35
+		});
 		expect(recommendKeep(fit, device)).toBe('a');
 		expect(recommendKeep(device, fit)).toBe('b');
 	});
 
 	it('breaks near-ties in favour of the live recording over an import', () => {
-		const device = side({ key: 'device:a', kind: 'device', points_per_min: 2, median_accuracy: 10 });
+		const device = side({
+			key: 'device:a',
+			kind: 'device',
+			points_per_min: 2,
+			median_accuracy: 10
+		});
 		const gpx = side({ key: 'import:gpx', kind: 'import', points_per_min: 2, median_accuracy: 10 });
 		expect(recommendKeep(gpx, device)).toBe('b');
 		expect(recommendKeep(device, gpx)).toBe('a');
@@ -89,7 +102,12 @@ describe('recommendKeep', () => {
 
 	it('breaks same-kind ties by density, then by stable key order', () => {
 		const dense = side({ key: 'device:a', kind: 'device', points_per_min: 4, median_accuracy: 10 });
-		const sparse = side({ key: 'device:b', kind: 'device', points_per_min: 1, median_accuracy: 10 });
+		const sparse = side({
+			key: 'device:b',
+			kind: 'device',
+			points_per_min: 1,
+			median_accuracy: 10
+		});
 		expect(recommendKeep(sparse, dense)).toBe('b');
 
 		const tieA = side({ key: 'device:a', points_per_min: 2 });
@@ -246,7 +264,10 @@ describe('buildSummary', () => {
 
 describe('monthWindows', () => {
 	it('splits a range into UTC calendar months, clamped to whole months', () => {
-		const windows = monthWindows(new Date('2026-05-15T08:00:00Z'), new Date('2026-07-02T10:00:00Z'));
+		const windows = monthWindows(
+			new Date('2026-05-15T08:00:00Z'),
+			new Date('2026-07-02T10:00:00Z')
+		);
 		expect(windows).toHaveLength(3);
 		expect(windows[0].start.toISOString()).toBe('2026-05-01T00:00:00.000Z');
 		expect(windows[0].end.toISOString()).toBe('2026-05-31T23:59:59.999Z');
@@ -255,6 +276,8 @@ describe('monthWindows', () => {
 	});
 
 	it('returns one window when both dates sit in the same month', () => {
-		expect(monthWindows(new Date('2026-06-03T00:00:00Z'), new Date('2026-06-20T00:00:00Z'))).toHaveLength(1);
+		expect(
+			monthWindows(new Date('2026-06-03T00:00:00Z'), new Date('2026-06-20T00:00:00Z'))
+		).toHaveLength(1);
 	});
 });

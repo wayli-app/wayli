@@ -97,7 +97,7 @@ pairs AS (
         m.b_ts AS ts_b,
         a.accuracy AS acc_a,
         m.b_acc AS acc_b
-    FROM a_import a, bounds b
+    FROM a_import a
     JOIN LATERAL (
         SELECT
             CASE
@@ -118,13 +118,13 @@ pairs AS (
           AND u.location IS NOT NULL
           AND u.recorded_at BETWEEN a.recorded_at - make_interval(secs => b2.time_window_s)
                                AND a.recorded_at + make_interval(secs => b2.time_window_s)
-    ) m ON m.b_key <> a.session_key
-    WHERE b.import_id IS NOT NULL
-      AND st_distancesphere(m.location, a.location)
-          <= GREATEST(
-              b.distance_m,
-              LEAST(COALESCE(m.b_acc, 0) + COALESCE(a.accuracy, 0), 500)
-          )
+          AND st_distancesphere(u.location, a.location)
+              <= GREATEST(
+                  b2.distance_m,
+                  LEAST(COALESCE(u.accuracy, 0) + COALESCE(a.accuracy, 0), 500)
+              )
+    ) m ON true
+    WHERE m.b_key <> a.session_key
 
     UNION ALL
 
@@ -137,7 +137,7 @@ pairs AS (
         m.b_ts AS ts_b,
         a.accuracy AS acc_a,
         m.b_acc AS acc_b
-    FROM a_scan a, bounds b
+    FROM a_scan a
     JOIN LATERAL (
         SELECT
             CASE
@@ -163,17 +163,18 @@ pairs AS (
               u.geocode->'properties'->>'import_id' IS NOT NULL
               OR u.device_id IS NOT NULL
           )
-    ) m ON m.b_key > a.session_key
-    WHERE b.import_id IS NULL
-      AND (
-          (a.session_kind = 'device' AND m.b_kind IN ('device', 'import'))
-          OR (a.session_kind = 'import' AND m.b_kind = 'device')
-      )
-      AND st_distancesphere(m.location, a.location)
-          <= GREATEST(
-              b.distance_m,
-              LEAST(COALESCE(m.b_acc, 0) + COALESCE(a.accuracy, 0), 500)
-          )
+          AND st_distancesphere(u.location, a.location)
+              <= GREATEST(
+                  b2.distance_m,
+                  LEAST(COALESCE(u.accuracy, 0) + COALESCE(a.accuracy, 0), 500)
+              )
+    ) m ON true
+    WHERE
+        m.b_key > a.session_key
+        AND (
+            (a.session_kind = 'device' AND m.b_kind IN ('device', 'import'))
+            OR (a.session_kind = 'import' AND m.b_kind = 'device')
+        )
 ),
 pair_ints AS (
     SELECT

@@ -8,19 +8,28 @@
 		Loader2,
 		MapPin,
 		Star,
-		Route
+		Route,
+		Copy,
+		X
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 
+	import DuplicateReviewModal from '$lib/components/DuplicateReviewModal.svelte';
 	import ExportJobs from '$lib/components/ExportJobs.svelte';
 	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
 	import { translate } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import {
+		dismissDuplicateReport,
+		listDuplicateReports,
+		type DuplicateReport
+	} from '$lib/services/duplicates.service';
 	import { jobCreationService } from '$lib/services/job-creation.service';
 	import { sessionStore } from '$lib/stores/auth';
 	import { isFitnessBetaEnabled, loadFitnessBeta } from '$lib/stores/fitness-beta.svelte';
+	import { allJobs } from '$lib/stores/job-store';
 
 	let t = $derived($translate);
 
@@ -31,6 +40,11 @@
 	let isDragOver = $state(false);
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 	let lastSuccessfulImport = $state<string | null>(null);
+
+	// ── Duplicate reports (#274) ──
+	let pendingReports = $state<DuplicateReport[]>([]);
+	let reviewingReport = $state<DuplicateReport | null>(null);
+	let dismissingReportId = $state<string | null>(null);
 
 	// ── Export state ──
 	let exportExpanded = $state(true);
@@ -178,6 +192,48 @@
 		}
 	}
 
+	// ── Duplicate reports (#274) ──
+	async function loadPendingReports() {
+		try {
+			pendingReports = await listDuplicateReports('pending_review');
+		} catch (err) {
+			console.error('Failed to load duplicate reports:', err);
+		}
+	}
+
+	function reportTitle(report: DuplicateReport): string {
+		if (report.source_type === 'import' && report.source?.file_name) {
+			return report.source.file_name;
+		}
+		return t('duplicates.bannerTitleScan');
+	}
+
+	async function handleDismissReport(report: DuplicateReport) {
+		dismissingReportId = report.id;
+		try {
+			await dismissDuplicateReport(report.id);
+			pendingReports = pendingReports.filter((r) => r.id !== report.id);
+		} catch (err) {
+			console.error('Dismiss failed:', err);
+			toast.error(t('duplicates.dismissFailed'));
+		} finally {
+			dismissingReportId = null;
+		}
+	}
+
+	// Refresh the banner when a relevant job reaches a terminal state: a
+	// data-import can create a new report; a duplicate-cleanup applies one.
+	let seenFinishedJobs = new Set<string>();
+	$effect(() => {
+		for (const job of $allJobs) {
+			if (job.status !== 'completed' || seenFinishedJobs.has(job.id)) continue;
+			if (job.job_name === 'data-import' || job.job_name === 'duplicate-cleanup') {
+				seenFinishedJobs.add(job.id);
+				loadPendingReports();
+			}
+		}
+	});
+
 	// ── Last import date ──
 	async function fetchLastSuccessfulImport() {
 		try {
@@ -210,6 +266,7 @@
 	}
 
 	onMount(fetchLastSuccessfulImport);
+	onMount(loadPendingReports);
 	onMount(async () => {
 		await loadFitnessBeta();
 		fitnessBeta = isFitnessBetaEnabled();
@@ -231,6 +288,52 @@
 	</div>
 
 	<div class="space-y-8">
+		<!-- ═══ Pending duplicate reports (#274) ═══ -->
+		{#if pendingReports.length > 0}
+			<div class="space-y-2">
+				{#each pendingReports as report (report.id)}
+					<div
+						class="flex items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-50 p-4 dark:bg-amber-950/20"
+					>
+						<Copy class="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+						<div class="min-w-0 flex-1">
+							<p class="text-foreground truncate text-sm font-semibold">
+								{t('duplicates.bannerTitle').replace('{file}', reportTitle(report))}
+							</p>
+							<p class="text-muted-foreground text-xs">
+								{t('duplicates.bannerDescription')
+									.replace(
+										'{sections}',
+										String(report.summary?.section_count ?? report.clusters?.length ?? 0)
+									)
+									.replace('{points}', String(report.summary?.recommended_remove_count ?? 0))}
+							</p>
+						</div>
+						<button
+							type="button"
+							onclick={() => (reviewingReport = report)}
+							class="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-amber-700"
+						>
+							{t('duplicates.review')}
+						</button>
+						<button
+							type="button"
+							onclick={() => handleDismissReport(report)}
+							disabled={dismissingReportId === report.id}
+							class="text-muted-foreground hover:text-foreground shrink-0 rounded-md p-1.5 disabled:opacity-50"
+							aria-label={t('duplicates.dismiss')}
+						>
+							{#if dismissingReportId === report.id}
+								<Loader2 class="h-4 w-4 animate-spin" />
+							{:else}
+								<X class="h-4 w-4" />
+							{/if}
+						</button>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
 		<!-- ═══ Import card (hero) ═══ -->
 		<div class="bg-card border-border rounded-xl border p-6">
 			<div class="mb-4 flex items-center gap-3">
@@ -474,3 +577,15 @@
 		</div>
 	</div>
 </div>
+
+<!-- Duplicate review modal (#274) -->
+{#if reviewingReport}
+	<DuplicateReviewModal
+		report={reviewingReport}
+		onclose={() => (reviewingReport = null)}
+		onSettled={(reportId) => {
+			pendingReports = pendingReports.filter((r) => r.id !== reportId);
+			reviewingReport = null;
+		}}
+	/>
+{/if}

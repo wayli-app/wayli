@@ -6,6 +6,7 @@
 
 import { fluxbase } from '$lib/fluxbase';
 import { addJobToStore } from '$lib/stores/job-store';
+import type { KeepDecision } from '$lib/services/duplicates.service';
 import {
 	startUpload,
 	updateUploadProgress,
@@ -22,7 +23,9 @@ type JobType =
 	| 'trip-detection'
 	| 'reverse-geocoding'
 	| 'distance-calculation'
-	| 'immich_sync';
+	| 'immich_sync'
+	| 'duplicate-scan'
+	| 'duplicate-cleanup';
 
 // All formats now use the unified data-import job
 const SUPPORTED_IMPORT_FORMATS = ['GeoJSON', 'GPX', 'KML', 'OwnTracks', 'Polarsteps', 'FIT'];
@@ -237,6 +240,42 @@ class JobCreationService {
 				target_user_id: targetUserId
 			},
 			priority: 3 // Lower priority since it's a background recalculation
+		});
+	}
+
+	/**
+	 * Create a historical duplicate scan (#274): walks the recording history in
+	 * month windows and writes one reviewable duplicate_reports row. Absent
+	 * dates scan the full history.
+	 */
+	async createDuplicateScanJob(
+		startDate?: Date | string,
+		endDate?: Date | string
+	): Promise<JobResult> {
+		const toISODate = (d: Date | string | undefined): string | undefined => {
+			if (!d) return undefined;
+			const date = d instanceof Date ? d : new Date(d);
+			return isNaN(date.getTime()) ? undefined : date.toISOString().slice(0, 10);
+		};
+
+		return this.createJob({
+			type: 'duplicate-scan',
+			data: {
+				start_date: toISODate(startDate),
+				end_date: toISODate(endDate)
+			}
+		});
+	}
+
+	/**
+	 * Apply a reviewed duplicate report: per section, keep side 'a' or 'b' (or
+	 * skip). The duplicate-cleanup job re-derives the exact delete set
+	 * server-side — decisions never carry point lists.
+	 */
+	async createDuplicateCleanupJob(reportId: string, decisions: KeepDecision[]): Promise<JobResult> {
+		return this.createJob({
+			type: 'duplicate-cleanup',
+			data: { report_id: reportId, decisions }
 		});
 	}
 
