@@ -46,7 +46,6 @@
 	import type { AdminSettingsResponse } from '$lib/types/settings.types';
 
 	import { browser } from '$app/environment';
-	import { invalidateAll } from '$app/navigation';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -1326,25 +1325,27 @@
 	async function handleConfirmDelete() {
 		if (!userToDelete) return;
 
-		const formData = new FormData();
-		formData.append('userId', userToDelete.id);
+		try {
+			const { data, error } = await fluxbase.functions.invoke('admin-users', {
+				method: 'POST',
+				body: { action: 'deleteUser', userId: userToDelete.id },
+				namespace: 'wayli'
+			});
 
-		const response = await fetch('?/deleteUser', {
-			method: 'POST',
-			body: formData
-		});
+			if (error) throw error;
 
-		if (response.ok) {
-			users = users.filter((u: UserProfile) => u.id !== userToDelete!.id);
-			toast.success(t('serverAdmin.userDeleted'));
-		} else {
-			let errorDescription = 'An unknown error occurred while deleting the user.';
-			try {
-				const result = await response.json();
-				errorDescription = result.error || result.message || errorDescription;
-			} catch {
-				// The response was not JSON, which is fine. The server might have crashed.
+			if ((data as any)?.success) {
+				users = users.filter((u: UserProfile) => u.id !== userToDelete!.id);
+				toast.success(t('serverAdmin.userDeleted'));
+			} else {
+				const errorDescription =
+					(data as any)?.error || 'An unknown error occurred while deleting the user.';
+				toast.error(t('serverAdmin.failedToDeleteUser'), { description: errorDescription });
 			}
+		} catch (error: any) {
+			console.error('Error deleting user:', error);
+			const errorDescription =
+				error?.message || error?.error || 'An unknown error occurred while deleting the user.';
 			toast.error(t('serverAdmin.failedToDeleteUser'), { description: errorDescription });
 		}
 
@@ -1364,7 +1365,8 @@
 					firstName: updatedUser.first_name || '',
 					lastName: updatedUser.last_name || '',
 					role: updatedUser.role || 'user'
-				}
+				},
+				namespace: 'wayli'
 			});
 
 			if (error) {
@@ -1374,7 +1376,7 @@
 			if ((data as any)?.success) {
 				toast.success(t('serverAdmin.userUpdated'));
 				handleCloseModal();
-				await invalidateAll(); // Refresh the user list
+				await fetchFilteredUsers();
 			} else {
 				const errorDescription = (data as any)?.error || t('serverAdmin.failedToUpdateUser');
 				toast.error(t('serverAdmin.failedToUpdateUser'), {
@@ -1774,7 +1776,8 @@
 					lastName: newUserLastName,
 					password: newUserPassword,
 					role: newUserRole
-				}
+				},
+				namespace: 'wayli'
 			});
 
 			if (error) {
@@ -1784,7 +1787,7 @@
 			if ((data as any)?.success) {
 				toast.success(t('serverAdmin.userAdded'));
 				handleCloseAddUserModal();
-				await invalidateAll(); // Refresh the user list
+				await fetchFilteredUsers();
 			} else {
 				const errorDescription =
 					(data as any)?.error || 'An unknown error occurred while adding the user.';

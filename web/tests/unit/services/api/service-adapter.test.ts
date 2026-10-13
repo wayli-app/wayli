@@ -1150,67 +1150,71 @@ describe('ServiceAdapter', () => {
 		});
 
 		describe('getAdminUsers', () => {
-			it('should fetch paginated users', async () => {
+			it('should fetch users through the admin-users function', async () => {
 				const profileQuery = createQueryMock({ role: 'admin' });
-				const usersQuery = createQueryMock([{ id: 'user1', email: 'user1@example.com' }]);
-				const countQuery = createQueryMock();
-				countQuery.then = vi.fn((resolve: any) => resolve({ count: 100 }));
 
-				mockFluxbase.from
-					.mockReturnValueOnce(profileQuery) // Check admin
-					.mockReturnValueOnce(usersQuery) // Get users
-					.mockReturnValueOnce(countQuery); // Get count
+				mockFluxbase.from.mockReturnValueOnce(profileQuery); // Check admin
+				mockFluxbase.functions.invoke.mockResolvedValueOnce({
+					data: {
+						success: true,
+						users: [{ id: 'user1', email: 'user1@example.com', role: 'user' }],
+						pagination: {
+							page: 1,
+							limit: 50,
+							total: 1,
+							totalPages: 1,
+							hasNext: false,
+							hasPrev: false
+						}
+					},
+					error: null
+				});
 
 				const result = await adapter.getAdminUsers({ page: 1, limit: 50 });
 
-				expect(result.users).toBeDefined();
-				expect(result.page).toBe(1);
-				expect(result.limit).toBe(50);
+				expect(mockFluxbase.functions.invoke).toHaveBeenCalledWith(
+					'admin-users',
+					expect.objectContaining({
+						body: { action: 'listUsers', page: 1, limit: 50, search: undefined },
+						namespace: 'wayli'
+					})
+				);
+				expect(result.users).toHaveLength(1);
+				expect(result.users[0].email).toBe('user1@example.com');
+				expect(result.pagination.total).toBe(1);
 			});
 
-			it('should apply search filter to users and count queries and return pagination', async () => {
+			it('should pass the search term through to the function', async () => {
 				const profileQuery = createQueryMock({ role: 'admin' });
-				const usersQuery = createQueryMock([{ id: 'user1', full_name: 'Ada Lovelace' }]);
-				const countQuery = createQueryMock();
-				countQuery.then = vi.fn((resolve: any) => resolve({ count: 12 }));
 
-				mockFluxbase.from
-					.mockReturnValueOnce(profileQuery) // Check admin
-					.mockReturnValueOnce(usersQuery) // Get users
-					.mockReturnValueOnce(countQuery); // Get count
-
-				const result = await adapter.getAdminUsers({ page: 2, limit: 10, search: 'ada' });
-
-				const expectedFilter =
-					'full_name.ilike.%ada%,first_name.ilike.%ada%,last_name.ilike.%ada%,username.ilike.%ada%';
-				expect(usersQuery.or).toHaveBeenCalledWith(expectedFilter);
-				expect(countQuery.or).toHaveBeenCalledWith(expectedFilter);
-				expect(result.pagination).toEqual({
-					page: 2,
-					limit: 10,
-					total: 12,
-					totalPages: 2,
-					hasNext: false,
-					hasPrev: true
+				mockFluxbase.from.mockReturnValueOnce(profileQuery);
+				mockFluxbase.functions.invoke.mockResolvedValueOnce({
+					data: { success: true, users: [], pagination: undefined },
+					error: null
 				});
+
+				await adapter.getAdminUsers({ page: 2, limit: 10, search: 'ada' });
+
+				expect(mockFluxbase.functions.invoke).toHaveBeenCalledWith(
+					'admin-users',
+					expect.objectContaining({
+						body: { action: 'listUsers', page: 2, limit: 10, search: 'ada' }
+					})
+				);
 			});
 
-			it('should not apply a search filter when no search is given', async () => {
+			it('should surface function errors', async () => {
 				const profileQuery = createQueryMock({ role: 'admin' });
-				const usersQuery = createQueryMock([]);
-				const countQuery = createQueryMock();
-				countQuery.then = vi.fn((resolve: any) => resolve({ count: 0 }));
 
-				mockFluxbase.from
-					.mockReturnValueOnce(profileQuery)
-					.mockReturnValueOnce(usersQuery)
-					.mockReturnValueOnce(countQuery);
+				mockFluxbase.from.mockReturnValueOnce(profileQuery);
+				mockFluxbase.functions.invoke.mockResolvedValueOnce({
+					data: { error: 'Admin access required' },
+					error: null
+				});
 
-				const result = await adapter.getAdminUsers({ page: 1, limit: 10 });
-
-				expect(usersQuery.or).not.toHaveBeenCalled();
-				expect(countQuery.or).not.toHaveBeenCalled();
-				expect(result.pagination.totalPages).toBe(0);
+				await expect(adapter.getAdminUsers({ page: 1, limit: 10 })).rejects.toThrow(
+					'Admin access required'
+				);
 			});
 
 			it('should throw error for non-admin user', async () => {

@@ -53,9 +53,9 @@ interface FluxbaseClient {
 				error: Error | null;
 			}>;
 
-			/**
-			 * Delete documents from a knowledge base by filter
-			 */
+		/**
+		 * Delete documents from a knowledge base by filter
+		 */
 			deleteDocumentsByFilter(
 				knowledgeBaseId: string,
 				filter: DeleteDocumentsByFilterRequest
@@ -64,6 +64,77 @@ interface FluxbaseClient {
 				error: Error | null;
 			}>;
 		};
+
+		/**
+		 * Auth user management (service_role required server-side)
+		 */
+		listUsers(options?: {
+			search?: string;
+			limit?: number;
+			offset?: number;
+			exclude_admins?: boolean;
+			type?: 'app' | 'platform';
+		}): Promise<{
+			data: {
+				users: Array<{
+					id: string;
+					email: string;
+					email_verified: boolean;
+					role: string;
+					created_at: string;
+					updated_at: string;
+					last_sign_in?: string | null;
+					user_metadata?: Record<string, unknown> | null;
+				}>;
+				total: number;
+				limit: number;
+				offset: number;
+			} | null;
+			error: Error | null;
+		}>;
+
+		/**
+		 * Get a single auth user by ID
+		 */
+		getUserById(
+			userId: string,
+			type?: 'app' | 'platform'
+		): Promise<{
+			data: {
+				id: string;
+				email: string;
+				email_verified: boolean;
+				role: string;
+				created_at: string;
+				updated_at: string;
+				last_sign_in?: string | null;
+			} | null;
+			error: Error | null;
+		}>;
+
+		/**
+		 * Permanently delete an auth user — tenant FK cascades remove the
+		 * profile, trips, tracker data (see fluxbase/functions/delete-account.ts)
+		 */
+		deleteUser(userId: string, type?: 'app' | 'platform'): Promise<{
+			data: unknown | null;
+			error: Error | null;
+		}>;
+	};
+
+	/**
+	 * Auth API — unauthenticated endpoints usable from the service client,
+	 * e.g. admin-driven account creation with a known password
+	 */
+	auth: {
+		signUp(credentials: {
+			email: string;
+			password: string;
+			options?: { data?: Record<string, unknown> };
+		}): Promise<{
+			data: { user: { id: string; email?: string } | null } | null;
+			error: Error | null;
+		}>;
 	};
 
 	/**
