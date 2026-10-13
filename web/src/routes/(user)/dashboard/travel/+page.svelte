@@ -157,6 +157,9 @@
 		try {
 			// Registered procedure (fluxbase/rpc/search-journal-entries.sql, synced
 			// into the 'wayli' namespace) — searches the caller's journal bodies.
+			// No AbortSignal yet (SDK rpc() doesn't take one — fluxbase#439), so a
+			// slow response can still race fresher keystrokes here, unlike the
+			// Pelias searches which abort via native fetch.
 			const { data, error } = await fluxbase.rpc(
 				'search-journal-entries',
 				{ search_text: q.trim(), limit: 20 },
