@@ -144,6 +144,9 @@
 	let searchResults = $state<any[]>([]);
 	let isSearching = $state(false);
 	let searchTimer: ReturnType<typeof setTimeout> | null = null;
+	// Aborts the previous in-flight Pelias request when a newer search starts,
+	// so a slow response can't overwrite fresher results.
+	let placeSearchAbort: AbortController | null = null;
 	let selectedCoords = $state<{ lat: number; lng: number } | null>(null);
 	let selectedAddress = $state<string | null>(null);
 
@@ -506,20 +509,25 @@
 			return;
 		}
 		searchTimer = setTimeout(async () => {
+			placeSearchAbort?.abort();
+			placeSearchAbort = new AbortController();
+			const { signal } = placeSearchAbort;
 			isSearching = true;
 			try {
 				const { getPeliasEndpoint } = await import('$lib/services/external/pelias.service');
 				const endpoint = await getPeliasEndpoint();
 				const res = await fetch(
 					`${endpoint}/v1/autocomplete?text=${encodeURIComponent(searchQuery)}&size=5`,
-					{ headers: { Accept: 'application/json' } }
+					{ headers: { Accept: 'application/json' }, signal }
 				);
 				const data = await res.json();
+				if (signal.aborted) return;
 				searchResults = data.features ?? [];
-			} catch {
+			} catch (err) {
+				if ((err as Error)?.name === 'AbortError') return;
 				searchResults = [];
 			} finally {
-				isSearching = false;
+				if (!signal.aborted) isSearching = false;
 			}
 		}, 300);
 	}

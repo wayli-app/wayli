@@ -85,6 +85,10 @@
 	let searchResults = $state<any[]>([]);
 	let showSearchResults = $state(false);
 	let isSearching = $state(false);
+	// Autocomplete race guard: each debounced search aborts the previous
+	// in-flight Pelias request so a slow response can't overwrite fresher
+	// results (or flip isSearching after the newer search started).
+	let placeSearchAbort: AbortController | null = null;
 
 	// Marker customization
 	let selectedMarkerType = $state('default');
@@ -707,11 +711,16 @@
 
 	const searchPlaces = debounce(async () => {
 		if (!modalSearchQuery || modalSearchQuery.length < 3) {
+			placeSearchAbort?.abort();
+			placeSearchAbort = null;
 			searchResults = [];
 			showSearchResults = false;
 			return;
 		}
 
+		placeSearchAbort?.abort();
+		placeSearchAbort = new AbortController();
+		const { signal } = placeSearchAbort;
 		isSearching = true;
 		try {
 			const { getPeliasEndpoint } = await import('$lib/services/external/pelias.service');
@@ -722,10 +731,12 @@
 				{
 					headers: {
 						Accept: 'application/json'
-					}
+					},
+					signal
 				}
 			);
 			const data = await response.json();
+			if (signal.aborted) return;
 			searchResults = (data.features || []).map((feature: any) => ({
 				name: feature.properties?.label || '',
 				lat: feature.geometry?.coordinates?.[1],
@@ -742,11 +753,12 @@
 			}));
 			showSearchResults = true;
 		} catch (error) {
+			if ((error as Error)?.name === 'AbortError') return;
 			console.error('Error searching places:', error);
 			searchResults = [];
 			showSearchResults = false;
 		} finally {
-			isSearching = false;
+			if (!signal.aborted) isSearching = false;
 		}
 	}, 300);
 
