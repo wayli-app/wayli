@@ -1,7 +1,7 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:@nimbleflux/fluxbase-sdk@2026.10.1": "2026.10.1_esbuild@0.24.0",
+    "npm:@nimbleflux/fluxbase-sdk@2026.10.2": "2026.10.2_esbuild@0.24.0",
     "npm:cross-fetch@4.1.0": "4.1.0",
     "npm:esbuild@0.24.0": "0.24.0"
   },
@@ -126,8 +126,8 @@
       "os": ["win32"],
       "cpu": ["x64"]
     },
-    "@nimbleflux/fluxbase-sdk@2026.10.1_esbuild@0.24.0": {
-      "integrity": "sha512-jDJTPrFPfTXtXWFDQcP0/Y1Uhb3+aD/5vtzvGU/BMcHLnZBGjruNN/i0AA+UbP1v93IYvF1WveCQ6xFik1qCYQ==",
+    "@nimbleflux/fluxbase-sdk@2026.10.2_esbuild@0.24.0": {
+      "integrity": "sha512-hg15Ihs0TPFQEaiP2qmOYVhk6CwdcUqqbaKguF6tWhH0NdQrNfvnuznDUaDlTZofsWIDn/A78UVVs8adtc1tkw==",
       "dependencies": [
         "cross-fetch",
         "esbuild"
@@ -203,7 +203,7 @@
   },
   "workspace": {
     "dependencies": [
-      "npm:@nimbleflux/fluxbase-sdk@2026.10.1",
+      "npm:@nimbleflux/fluxbase-sdk@2026.10.2",
       "npm:cross-fetch@4.1.0"
     ]
   }
