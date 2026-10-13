@@ -145,30 +145,42 @@
 	let searching = $state(false);
 	let searchOpen = $state(false);
 	let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+	// Aborts the superseded RPC when a newer keystroke's search starts, so a
+	// slow response can't race fresher results (SDK signal support: fluxbase#439).
+	let journalSearchAbort: AbortController | null = null;
 
 	async function runJournalSearch(q: string) {
 		if (q.trim().length < 2) {
+			journalSearchAbort?.abort();
+			journalSearchAbort = null;
 			searchResults = [];
 			searchOpen = false;
 			return;
 		}
+		journalSearchAbort?.abort();
+		journalSearchAbort = new AbortController();
+		const { signal } = journalSearchAbort;
 		searching = true;
 		searchOpen = true;
 		try {
 			// Registered procedure (fluxbase/rpc/search-journal-entries.sql, synced
 			// into the 'wayli' namespace) — searches the caller's journal bodies.
-			const { data, error } = await fluxbase.rpc(
+			// rpc.invoke rather than the client.rpc shorthand: only the full
+			// method's options type accepts `signal`.
+			const { data, error } = await fluxbase.rpc.invoke(
 				'search-journal-entries',
 				{ search_text: q.trim(), limit: 20 },
-				{ namespace: 'wayli' }
+				{ namespace: 'wayli', signal }
 			);
 			if (error) throw error;
+			if (signal.aborted) return;
 			searchResults = (data ?? []) as typeof searchResults;
 		} catch (err) {
+			if ((err as Error)?.name === 'AbortError') return;
 			console.error('Journal search failed:', err);
 			searchResults = [];
 		} finally {
-			searching = false;
+			if (!signal.aborted) searching = false;
 		}
 	}
 

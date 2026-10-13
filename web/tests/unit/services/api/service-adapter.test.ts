@@ -1168,6 +1168,51 @@ describe('ServiceAdapter', () => {
 				expect(result.limit).toBe(50);
 			});
 
+			it('should apply search filter to users and count queries and return pagination', async () => {
+				const profileQuery = createQueryMock({ role: 'admin' });
+				const usersQuery = createQueryMock([{ id: 'user1', full_name: 'Ada Lovelace' }]);
+				const countQuery = createQueryMock();
+				countQuery.then = vi.fn((resolve: any) => resolve({ count: 12 }));
+
+				mockFluxbase.from
+					.mockReturnValueOnce(profileQuery) // Check admin
+					.mockReturnValueOnce(usersQuery) // Get users
+					.mockReturnValueOnce(countQuery); // Get count
+
+				const result = await adapter.getAdminUsers({ page: 2, limit: 10, search: 'ada' });
+
+				const expectedFilter =
+					'full_name.ilike.%ada%,first_name.ilike.%ada%,last_name.ilike.%ada%,username.ilike.%ada%';
+				expect(usersQuery.or).toHaveBeenCalledWith(expectedFilter);
+				expect(countQuery.or).toHaveBeenCalledWith(expectedFilter);
+				expect(result.pagination).toEqual({
+					page: 2,
+					limit: 10,
+					total: 12,
+					totalPages: 2,
+					hasNext: false,
+					hasPrev: true
+				});
+			});
+
+			it('should not apply a search filter when no search is given', async () => {
+				const profileQuery = createQueryMock({ role: 'admin' });
+				const usersQuery = createQueryMock([]);
+				const countQuery = createQueryMock();
+				countQuery.then = vi.fn((resolve: any) => resolve({ count: 0 }));
+
+				mockFluxbase.from
+					.mockReturnValueOnce(profileQuery)
+					.mockReturnValueOnce(usersQuery)
+					.mockReturnValueOnce(countQuery);
+
+				const result = await adapter.getAdminUsers({ page: 1, limit: 10 });
+
+				expect(usersQuery.or).not.toHaveBeenCalled();
+				expect(countQuery.or).not.toHaveBeenCalled();
+				expect(result.pagination.totalPages).toBe(0);
+			});
+
 			it('should throw error for non-admin user', async () => {
 				const nonAdminQuery = createQueryMock({ role: 'user' });
 				mockFluxbase.from.mockReturnValue(nonAdminQuery);

@@ -60,6 +60,9 @@
 	// parentNode"). This flag lets those paths bail out cleanly.
 	let destroyed = false;
 	let invalidateTimeout: ReturnType<typeof setTimeout> | null = null;
+	// Aborted on teardown (and on refresh) so an in-flight loadData stops
+	// streaming point batches the moment their page is gone.
+	let loadController: AbortController | null = null;
 
 	let allPoints = $state<SelectedPoint[]>([]);
 	let totalCount = $state(0);
@@ -114,6 +117,8 @@
 		// (drawPoints, map.on handlers, watchMapTheme swap) bails out via the
 		// `if (!map || !L) return` guard instead of hitting a detached node.
 		destroyed = true;
+		loadController?.abort();
+		loadController = null;
 		if (invalidateTimeout) {
 			clearTimeout(invalidateTimeout);
 			invalidateTimeout = null;
@@ -163,31 +168,40 @@
 	});
 
 	async function loadData() {
+		loadController?.abort();
+		loadController = new AbortController();
+		const { signal } = loadController;
 		isLoading = true;
 		loadingProgress = 0;
 		loadingStage = t('dataEditor.loadingPointsIndeterminate');
 		try {
 			const { data: userData } = await fluxbase.auth.getUser();
-			if (destroyed) return;
+			if (destroyed || signal.aborted) return;
 			const userId = userData?.user?.id;
 			if (!userId) return;
 
 			// Fetch everything into plain locals — NO $state mutations during awaits.
 			const [count, zones, home] = await Promise.all([
-				getPointCount(userId, startDate, endDate),
-				getExclusionZones(),
-				getHomeAddress()
+				getPointCount(userId, startDate, endDate, { signal }),
+				getExclusionZones({ signal }),
+				getHomeAddress({ signal })
 			]);
-			if (destroyed) return;
+			if (destroyed || signal.aborted) return;
 
 			// Stream points in batches, reporting progress to non-reactive locals only.
 			let lastProgress = 10;
 			let lastStage = t('dataEditor.loadingPointsIndeterminate');
-			const points = await getPoints(userId, startDate, endDate, (loaded, total) => {
-				lastProgress = total > 0 ? 10 + Math.round((loaded / total) * 85) : 10 + 40;
-				lastStage = t('dataEditor.loadingPoints').replace('{count}', String(loaded));
-			});
-			if (destroyed) return;
+			const points = await getPoints(
+				userId,
+				startDate,
+				endDate,
+				(loaded, total) => {
+					lastProgress = total > 0 ? 10 + Math.round((loaded / total) * 85) : 10 + 40;
+					lastStage = t('dataEditor.loadingPoints').replace('{count}', String(loaded));
+				},
+				{ signal }
+			);
+			if (destroyed || signal.aborted) return;
 
 			// ALL $state mutations happen here, synchronously, behind a single guard.
 			// This prevents Svelte 5 reactivity from firing during {#key} teardown.
@@ -203,12 +217,12 @@
 			}));
 			selectedCount = 0;
 		} catch (err) {
-			if (!destroyed) {
-				console.error('Failed to load data:', err);
-				toast.error(t('dataEditor.loadFailed'));
-			}
+			// Aborted loads are expected on teardown/refresh — bail out silently.
+			if ((err as Error)?.name === 'AbortError' || destroyed) return;
+			console.error('Failed to load data:', err);
+			toast.error(t('dataEditor.loadFailed'));
 		} finally {
-			if (!destroyed) {
+			if (!destroyed && !signal.aborted) {
 				isLoading = false;
 				loadingProgress = 100;
 			}

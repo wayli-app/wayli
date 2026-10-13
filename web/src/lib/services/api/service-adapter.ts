@@ -1922,7 +1922,7 @@ export class ServiceAdapter {
 		}
 	}
 
-	async getAdminUsers(options?: { page?: number; limit?: number }) {
+	async getAdminUsers(options?: { page?: number; limit?: number; search?: string }) {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		// Get user ID and verify admin role
@@ -1946,10 +1946,18 @@ export class ServiceAdapter {
 		const limit = options?.limit || 50;
 		const offset = (page - 1) * limit;
 
+		// user_profiles has no email column (auth.users owns it), so the search
+		// covers the name fields only. `,` and `)` are PostgREST or()-filter
+		// delimiters — strip them so a search term can't reshape the filter.
+		const search = options?.search?.trim().replace(/[,()]/g, ' ');
+		const searchFilter = search
+			? `full_name.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,username.ilike.%${search}%`
+			: null;
+
 		// Fetch users with pagination
-		const { data: users, error } = await fluxbase
-			.from<Record<string, any>>('user_profiles')
-			.select('*')
+		let usersQuery = fluxbase.from<Record<string, any>>('user_profiles').select('*');
+		if (searchFilter) usersQuery = usersQuery.or(searchFilter);
+		const { data: users, error } = await usersQuery
 			.order('created_at', { ascending: false })
 			.range(offset, offset + limit - 1);
 
@@ -1957,16 +1965,30 @@ export class ServiceAdapter {
 			throw new Error(error.message || 'Failed to fetch users');
 		}
 
-		// Get total count for pagination
-		const { count } = await fluxbase
+		// Get total count for pagination — same search filter, so totalPages
+		// reflects the filtered result set.
+		let countQuery = fluxbase
 			.from<Record<string, any>>('user_profiles')
 			.select('*', { count: 'exact', head: true });
+		if (searchFilter) countQuery = countQuery.or(searchFilter);
+		const { count } = await countQuery;
+
+		const total = count || 0;
+		const totalPages = Math.ceil(total / limit);
 
 		return {
 			users: users || [],
-			total: count || 0,
+			total,
 			page,
-			limit
+			limit,
+			pagination: {
+				page,
+				limit,
+				total,
+				totalPages,
+				hasNext: page < totalPages,
+				hasPrev: page > 1
+			}
 		};
 	}
 

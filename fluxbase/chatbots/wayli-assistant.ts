@@ -32,6 +32,12 @@
  * @fluxbase:rag-max-chunks 5
  * @fluxbase:rag-similarity-threshold 0.7
  *
+ * Cache plain-text single-turn answers (Fluxbase ≥ 2026.10.1). Safe for live
+ * tracker data: turns that called tools (SQL, RPC, web search) are never
+ * cached, entries expire after ai.response_cache_ttl (default 1h), and the
+ * cache is invalidated whenever a wayli-pois KB document finishes processing.
+ * @fluxbase:response-cache true
+ *
  * @fluxbase:page-contexts [
  *   {
  *     "page": "default",

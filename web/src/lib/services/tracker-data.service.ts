@@ -39,12 +39,15 @@ export type ExclusionZone = {
 
 /**
  * Fetch tracker_data points for a date range (paginated, max 1000 per batch).
+ * Pass `options.signal` to cancel the remaining batches mid-stream (the SDK
+ * rejects with an Error named "AbortError").
  */
 export async function getPoints(
 	userId: string,
 	startDate: string | Date,
 	endDate: string | Date,
-	onProgress?: (loaded: number, total: number) => void
+	onProgress?: (loaded: number, total: number) => void,
+	options?: { signal?: AbortSignal | null }
 ): Promise<DataPoint[]> {
 	const sd = toDateStr(startDate);
 	const ed = toDateStr(endDate);
@@ -60,7 +63,8 @@ export async function getPoints(
 			.gte('recorded_at', `${sd}T00:00:00Z`)
 			.lte('recorded_at', `${ed}T23:59:59Z`)
 			.order('recorded_at', { ascending: true })
-			.range(offset, offset + 999);
+			.range(offset, offset + 999)
+			.execute({ signal: options?.signal });
 
 		if (error) throw new Error(error.message);
 
@@ -110,7 +114,8 @@ export async function getPoints(
 export async function getPointCount(
 	userId: string,
 	startDate: string | Date,
-	endDate: string | Date
+	endDate: string | Date,
+	options?: { signal?: AbortSignal | null }
 ): Promise<number> {
 	const sd = toDateStr(startDate);
 	const ed = toDateStr(endDate);
@@ -120,7 +125,8 @@ export async function getPointCount(
 		.select('*', { count: 'exact', head: true })
 		.eq('user_id', userId)
 		.gte('recorded_at', `${sd}T00:00:00Z`)
-		.lte('recorded_at', `${ed}T23:59:59Z`);
+		.lte('recorded_at', `${ed}T23:59:59Z`)
+		.execute({ signal: options?.signal });
 
 	if (error) return 0;
 	return count ?? 0;
@@ -156,7 +162,9 @@ export async function deletePoints(userId: string, timestamps: string[]): Promis
 /**
  * Get exclusion zones from user_preferences.
  */
-export async function getExclusionZones(): Promise<ExclusionZone[]> {
+export async function getExclusionZones(options?: {
+	signal?: AbortSignal | null;
+}): Promise<ExclusionZone[]> {
 	const { data: userData } = await fluxbase.auth.getUser();
 	const userId = userData?.user?.id;
 	if (!userId) return [];
@@ -165,7 +173,8 @@ export async function getExclusionZones(): Promise<ExclusionZone[]> {
 		.from<Record<string, any>>('user_preferences')
 		.select('trip_exclusions')
 		.eq('id', userId)
-		.maybeSingle();
+		.maybeSingle()
+		.execute({ signal: options?.signal });
 
 	const exclusions = (data as any)?.trip_exclusions;
 	if (!Array.isArray(exclusions)) return [];
@@ -182,7 +191,9 @@ export async function getExclusionZones(): Promise<ExclusionZone[]> {
 /**
  * Get home address from user_profiles.
  */
-export async function getHomeAddress(): Promise<{ lat: number; lng: number } | null> {
+export async function getHomeAddress(options?: {
+	signal?: AbortSignal | null;
+}): Promise<{ lat: number; lng: number } | null> {
 	const { data: userData } = await fluxbase.auth.getUser();
 	const userId = userData?.user?.id;
 	if (!userId) return null;
@@ -191,7 +202,8 @@ export async function getHomeAddress(): Promise<{ lat: number; lng: number } | n
 		.from<Record<string, any>>('user_profiles')
 		.select('home_address')
 		.eq('id', userId)
-		.maybeSingle();
+		.maybeSingle()
+		.execute({ signal: options?.signal });
 
 	const addr = (data as any)?.home_address;
 	if (!addr) return null;
