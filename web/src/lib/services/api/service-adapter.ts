@@ -1925,13 +1925,13 @@ export class ServiceAdapter {
 	async getAdminUsers(options?: { page?: number; limit?: number; search?: string }) {
 		const { fluxbase } = await import('$lib/fluxbase');
 
-		// Get user ID and verify admin role
+		// Get user ID and verify admin role — fast client-side gate; the
+		// admin-users function re-checks server-side against the service client.
 		const { data: userData } = await fluxbase.auth.getUser();
 		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
-		// Check if user is admin
 		const { data: profile } = await fluxbase
 			.from<Record<string, any>>('user_profiles')
 			.select('role')
@@ -1944,44 +1944,46 @@ export class ServiceAdapter {
 
 		const page = options?.page || 1;
 		const limit = options?.limit || 50;
-		const offset = (page - 1) * limit;
 
-		// user_profiles has no email column (auth.users owns it), so the search
-		// covers the name fields only. `,` and `)` are PostgREST or()-filter
-		// delimiters — strip them so a search term can't reshape the filter.
-		const search = options?.search?.trim().replace(/[,()]/g, ' ');
-		const searchFilter = search
-			? `full_name.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,username.ilike.%${search}%`
-			: null;
-
-		// Fetch users with pagination
-		let usersQuery = fluxbase.from<Record<string, any>>('user_profiles').select('*');
-		if (searchFilter) usersQuery = usersQuery.or(searchFilter);
-		const { data: users, error } = await usersQuery
-			.order('created_at', { ascending: false })
-			.range(offset, offset + limit - 1);
-
+		// Emails live in auth.users, which only the service role can read —
+		// listing/searching goes through the admin-users edge function
+		// (fluxbase/functions/admin-users.ts), which merges auth users with
+		// their user_profiles rows and searches both email and names.
+		const { data, error } = await fluxbase.functions.invoke('admin-users', {
+			method: 'POST',
+			body: { action: 'listUsers', page, limit, search: options?.search || undefined },
+			namespace: 'wayli'
+		});
 		if (error) {
-			throw new Error(error.message || 'Failed to fetch users');
+			throw new Error((error as Error)?.message || 'Failed to fetch users');
 		}
 
-		// Get total count for pagination — same search filter, so totalPages
-		// reflects the filtered result set.
-		let countQuery = fluxbase
-			.from<Record<string, any>>('user_profiles')
-			.select('*', { count: 'exact', head: true });
-		if (searchFilter) countQuery = countQuery.or(searchFilter);
-		const { count } = await countQuery;
+		const body = (data ?? {}) as {
+			error?: string;
+			users?: Array<Record<string, any>>;
+			pagination?: {
+				page: number;
+				limit: number;
+				total: number;
+				totalPages: number;
+				hasNext: boolean;
+				hasPrev: boolean;
+			};
+		};
+		if (body.error) {
+			throw new Error(body.error);
+		}
 
-		const total = count || 0;
+		const users = body.users ?? [];
+		const total = body.pagination?.total ?? users.length;
 		const totalPages = Math.ceil(total / limit);
 
 		return {
-			users: users || [],
+			users,
 			total,
 			page,
 			limit,
-			pagination: {
+			pagination: body.pagination ?? {
 				page,
 				limit,
 				total,
