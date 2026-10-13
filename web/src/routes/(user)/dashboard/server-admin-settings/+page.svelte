@@ -47,7 +47,6 @@
 
 	import { browser } from '$app/environment';
 	import { invalidateAll } from '$app/navigation';
-	import { SvelteURLSearchParams } from 'svelte/reactivity';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -282,11 +281,6 @@
 	async function fetchFilteredUsers() {
 		if (!browser) return;
 
-		const params = new SvelteURLSearchParams();
-		if (debouncedSearchQuery) params.set('search', debouncedSearchQuery);
-		if (currentPage > 1) params.set('page', currentPage.toString());
-		if (itemsPerPage !== 10) params.set('limit', itemsPerPage.toString());
-
 		try {
 			const session = $sessionStore;
 			if (!session) return;
@@ -294,7 +288,8 @@
 			const serviceAdapter = new ServiceAdapter({ session });
 			const result = (await serviceAdapter.getAdminUsers({
 				page: currentPage,
-				limit: itemsPerPage
+				limit: itemsPerPage,
+				search: debouncedSearchQuery || undefined
 			})) as any;
 
 			// Edge Functions return { success: true, data: ... }
