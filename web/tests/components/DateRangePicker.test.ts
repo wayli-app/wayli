@@ -1,5 +1,5 @@
 import { render, fireEvent } from '@testing-library/svelte';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
 
@@ -71,5 +71,53 @@ describe('DateRangePicker dropdown positioning', () => {
 		await new Promise((r) => setTimeout(r, 0));
 		expect(onChange).toHaveBeenCalledTimes(1);
 		expect(trigger.textContent).not.toContain('…');
+	});
+
+	// #280: the library's callback is onDateChange — `onchange` was silently
+	// ignored, so parents watching onChange (e.g. the Data Editor's reload)
+	// never heard about calendar picks and kept showing the previous range.
+	it('fires onChange when a calendar range is picked', async () => {
+		const onChange = vi.fn();
+		const { container } = render(DateRangePicker, {
+			props: { pickLabel: 'Pick a date', showClear: false, onChange }
+		});
+
+		const wrapper = container.querySelector<HTMLElement>('.date-filter')!;
+		const trigger = wrapper.querySelector<HTMLButtonElement>('.date-field')!;
+		await fireEvent.click(trigger);
+		await new Promise((r) => setTimeout(r, 0));
+
+		const days = wrapper.querySelectorAll<HTMLElement>('button.date:not(.disabled)');
+		expect(days.length).toBeGreaterThan(10);
+
+		// First click only arms the start; no complete range, no onChange yet.
+		await fireEvent.click(days[3]);
+		await new Promise((r) => setTimeout(r, 0));
+		expect(onChange).not.toHaveBeenCalled();
+
+		// Second click completes the range and notifies the parent.
+		await fireEvent.click(days[9]);
+		await new Promise((r) => setTimeout(r, 0));
+		expect(onChange).toHaveBeenCalledTimes(1);
+	});
+
+	// Calendar presets must notify too — they go through the same
+	// onDateChange path as two-click ranges (#280).
+	it('fires onChange when a calendar preset is clicked', async () => {
+		const onChange = vi.fn();
+		const { container } = render(DateRangePicker, {
+			props: { pickLabel: 'Pick a date', showClear: false, onChange }
+		});
+
+		const wrapper = container.querySelector<HTMLElement>('.date-filter')!;
+		const trigger = wrapper.querySelector<HTMLButtonElement>('.date-field')!;
+		await fireEvent.click(trigger);
+		await new Promise((r) => setTimeout(r, 0));
+
+		const presets = wrapper.querySelectorAll<HTMLElement>('.calendar-presets button');
+		expect(presets.length).toBeGreaterThan(0);
+		await fireEvent.click(presets[0]);
+		await new Promise((r) => setTimeout(r, 0));
+		expect(onChange).toHaveBeenCalledTimes(1);
 	});
 });
