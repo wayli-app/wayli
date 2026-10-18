@@ -186,6 +186,19 @@
 		}
 	}
 
+	// The library's change callback is `onDateChange` — it has no `onchange`
+	// prop, so passing one is silently ignored and parents never learn about
+	// calendar selections (#280). It fires once a complete range is picked
+	// (second day click) or a calendar preset is chosen; the first click of a
+	// range fires nothing, so parents never see a half-finished range here
+	// either. The event carries the picked values, so sync them into the
+	// bound props rather than relying on binding-propagation timing.
+	function handlePickerChange(event: { startDate?: string | Date; endDate?: string | Date }) {
+		if (event?.startDate != null) startDate = event.startDate;
+		if (event?.endDate != null) endDate = event.endDate;
+		handleChange();
+	}
+
 	function handleClearClick(event: MouseEvent) {
 		event.stopPropagation();
 		onClearDates();
@@ -278,13 +291,15 @@
 		{/snippet}
 
 		{#if requireCompleteRange}
+			<!-- Propagation is driven by the pending-range $effect above, so the
+			     library callback must NOT also be wired here (it would fire
+			     onChange twice per completed range). -->
 			<DatePicker
 				bind:isOpen
 				bind:startDate={pendingStart}
 				bind:endDate={pendingEnd}
 				isRange
 				showPresets
-				onchange={handleChange}
 			>
 				{@render trigger()}
 			</DatePicker>
@@ -295,7 +310,7 @@
 				bind:endDate
 				isRange
 				showPresets
-				onchange={handleChange}
+				onDateChange={handlePickerChange}
 			>
 				{@render trigger()}
 			</DatePicker>
